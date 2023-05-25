@@ -6,7 +6,7 @@
   <link href="http://lrcshare.com/atom.xml" rel="self"/>
   
   <link href="http://lrcshare.com/"/>
-  <updated>2023-05-25T04:47:43.715Z</updated>
+  <updated>2023-05-25T05:07:32.699Z</updated>
   <id>http://lrcshare.com/</id>
   
   <author>
@@ -21,14 +21,14 @@
     <link href="http://lrcshare.com/lrc/180e4bf/"/>
     <id>http://lrcshare.com/lrc/180e4bf/</id>
     <published>2023-05-25T04:45:16.000Z</published>
-    <updated>2023-05-25T04:47:43.715Z</updated>
+    <updated>2023-05-25T05:07:32.699Z</updated>
     
-    <content type="html"><![CDATA[<p>LrcShareApi目前已提供给各位音乐播放器开发者使用。<br>详情请见<a href="https://lrcshare.com">LrcShareApi使用文档</a></p>]]></content>
+    <content type="html"><![CDATA[<p>LrcShareApi目前已提供给各位音乐播放器开发者使用。<br>详情请见<a href="https://doc.lrcshare.com">LrcShareApi使用文档</a></p>]]></content>
     
     
       
       
-    <summary type="html">&lt;p&gt;LrcShareApi目前已提供给各位音乐播放器开发者使用。&lt;br&gt;详情请见&lt;a href=&quot;https://lrcshare.com&quot;&gt;LrcShareApi使用文档&lt;/a&gt;&lt;/p&gt;
+    <summary type="html">&lt;p&gt;LrcShareApi目前已提供给各位音乐播放器开发者使用。&lt;br&gt;详情请见&lt;a href=&quot;https://doc.lrcshare.com&quot;&gt;LrcShareApi使用文档&lt;/a&gt;&lt;/p&gt;
 </summary>
       
     
