@@ -6,7 +6,7 @@
   <link href="http://lrcshare.com/atom.xml" rel="self"/>
   
   <link href="http://lrcshare.com/"/>
-  <updated>2024-07-11T07:13:27.583Z</updated>
+  <updated>2024-07-22T11:39:46.223Z</updated>
   <id>http://lrcshare.com/</id>
   
   <author>
@@ -15,6 +15,28 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>LrcShareApi - 全世界最小且最全的歌曲标签库</title>
+    <link href="http://lrcshare.com/lrc/9c5aa24a/"/>
+    <id>http://lrcshare.com/lrc/9c5aa24a/</id>
+    <published>2024-07-22T01:34:34.000Z</published>
+    <updated>2024-07-22T11:39:46.223Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>LrcShareApi是基于LrcShare而为开发者推出的Api接口，可以方便大家更便捷地匹配音乐标签，去掉了在网站上复制粘贴等繁琐步骤。</p><h2 id="特色"><a href="#特色" class="headerlink" title="特色"></a>特色</h2><ul><li>无屏蔽词</li><li>标签齐全</li><li>永远免费</li></ul><h2 id="使用介绍"><a href="#使用介绍" class="headerlink" title="使用介绍"></a>使用介绍</h2><p>详情请参照<a href="https://doc.lrcshare.com">LrcShareApi使用文档</a>。</p>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;h2 id=&quot;简介&quot;&gt;&lt;a href=&quot;#简介&quot; class=&quot;headerlink&quot; title=&quot;简介&quot;&gt;&lt;/a&gt;简介&lt;/h2&gt;&lt;p&gt;LrcShareApi是基于LrcShare而为开发者推出的Api接口，可以方便大家更便捷地匹配音乐标签，去掉了在网站上复制粘贴等繁琐步骤。</summary>
+      
+    
+    
+    
+    
+    <category term="Api" scheme="http://lrcshare.com/tags/Api/"/>
+    
+  </entry>
   
   <entry>
     <title>Jiaming - Chillax(feat. JahJahWay &amp; JieZi)</title>
@@ -519,32 +541,6 @@
     <category term="X2ISPANDA" scheme="http://lrcshare.com/tags/X2ISPANDA/"/>
     
     <category term="只因当时太紧张" scheme="http://lrcshare.com/tags/%E5%8F%AA%E5%9B%A0%E5%BD%93%E6%97%B6%E5%A4%AA%E7%B4%A7%E5%BC%A0/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>my little airport - 柯德莉，关于风景</title>
-    <link href="http://lrcshare.com/lrc/6c4f2ff4/"/>
-    <id>http://lrcshare.com/lrc/6c4f2ff4/</id>
-    <published>2024-05-27T05:32:09.000Z</published>
-    <updated>2024-05-27T06:00:28.065Z</updated>
-    
-    <content type="html"><![CDATA[<div class="tabs" id="歌词"><ul class="nav-tabs"><li class="tab active"><button type="button" data-href="#歌词-1">文本歌词</button></li><li class="tab"><button type="button" data-href="#歌词-2">LRC歌词</button></li></ul><div class="tab-contents"><div class="tab-item-content active" id="歌词-1"><figure class="highlight txt"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">my little airport - 柯德莉，關於風景</span><br><span class="line">作詞：林阿p/區健瑩(Nicole Au)</span><br><span class="line">作曲：林阿p</span><br><span class="line">編曲：林阿p</span><br><span class="line">演唱：區健瑩(Nicole Au)</span><br><span class="line">LRC:X2ISPANDA(https://lrcshare.com)</span><br><span class="line">沒什麼秘密</span><br><span class="line">可以及現在更秘密</span><br><span class="line">月亮將下沉</span><br><span class="line">可是末日未會如常降臨</span><br><span class="line">看著天和海</span><br><span class="line">仿似連成一物</span><br><span class="line">但是不曾接近</span><br><span class="line">你像片大海</span><br><span class="line">柯德莉藍的海</span><br><span class="line">願望看著天</span><br><span class="line">包括 樹木 唱片</span><br><span class="line">皮鞋 情侶 公路</span><br><span class="line">石頭 河流 商舖</span><br></pre></td></tr></table></figure><button type="button" class="tab-to-top" aria-label="scroll to top"><i class="fas fa-arrow-up"></i></button></div><div class="tab-item-content" id="歌词-2"><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">[ti: 柯德莉，關於風景]</span><br><span class="line">[ar: my little airport]</span><br><span class="line">[al: 在動物園散步才是正經事]</span><br><span class="line">[length: 01:40.519]</span><br><span class="line">[tool: 歌词滚动姬 https://lrc-maker.github.io]</span><br><span class="line">[00:00.000] my little airport - 柯德莉，關於風景</span><br><span class="line">[00:02.255] 作詞：林阿p/區健瑩(Nicole Au)</span><br><span class="line">[00:03.846] 作曲：林阿p</span><br><span class="line">[00:05.435] 編曲：林阿p</span><br><span class="line">[00:06.752] 演唱：區健瑩(Nicole Au)</span><br><span class="line">[00:08.356] LRC:X2ISPANDA(https://lrcshare.com)</span><br><span class="line">[00:23.214] 沒什麼秘密</span><br><span class="line">[00:28.641] 可以及現在更秘密</span><br><span class="line">[00:34.557] 月亮將下沉</span><br><span class="line">[00:40.042] 可是末日未會如常降臨</span><br><span class="line">[00:58.904] 看著天和海</span><br><span class="line">[01:01.742] 仿似連成一物</span><br><span class="line">[01:04.728] 但是不曾接近</span><br><span class="line">[01:10.662] 你像片大海</span><br><span class="line">[01:13.392] 柯德莉藍的海</span><br><span class="line">[01:16.226] 願望看著天</span><br><span class="line">[01:19.045] 包括 樹木 唱片</span><br><span class="line">[01:21.787] 皮鞋 情侶 公路</span><br><span class="line">[01:24.836] 石頭 河流 商舖</span><br></pre></td></tr></table></figure><button type="button" class="tab-to-top" aria-label="scroll to top"><i class="fas fa-arrow-up"></i></button></div></div></div>]]></content>
-    
-    
-      
-      
-    <summary type="html">&lt;div class=&quot;tabs&quot; id=&quot;歌词&quot;&gt;&lt;ul class=&quot;nav-tabs&quot;&gt;&lt;li class=&quot;tab active&quot;&gt;&lt;button type=&quot;button&quot; data-href=&quot;#歌词-1&quot;&gt;文本歌词&lt;/button&gt;&lt;/li&gt;&lt;li class=&quot;t</summary>
-      
-    
-    
-    
-    <category term="my little airport" scheme="http://lrcshare.com/categories/my-little-airport/"/>
-    
-    
-    <category term="X2ISPANDA" scheme="http://lrcshare.com/tags/X2ISPANDA/"/>
-    
-    <category term="在动物园散步才是正经事" scheme="http://lrcshare.com/tags/%E5%9C%A8%E5%8A%A8%E7%89%A9%E5%9B%AD%E6%95%A3%E6%AD%A5%E6%89%8D%E6%98%AF%E6%AD%A3%E7%BB%8F%E4%BA%8B/"/>
     
   </entry>
   
