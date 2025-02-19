@@ -11,21 +11,17 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.repository.owner.id == github.event.sender.id || github.event_name == 'schedule'
     steps:
-
-      - name: 1. 检查url文件
-        uses: actions/checkout@v3
-
-      - name: 2. 安装 Node
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@main
+        
+          
+      - uses: actions/setup-node@main
         with:
-          node-version: 16
-
-      - name: 3. 安装插件
-        run: |
+          node-version: latest
+      - run: |
           npm init -y
           npm install hexo-seo-autopush
 
-      - name: 4. google 提交
+      - name: google push
         run: npx hexoautopush ${{secrets.google_client_email}} ${{secrets.google_private_key}}
       
       
