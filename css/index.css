@@ -2732,6 +2732,52 @@ figure.highlight pre .javascript .function {
   align-items: center;
   gap: 16px;
 }
+#category .category-header .back-btn {
+  display: -webkit-box;
+  display: -moz-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: box;
+  display: flex;
+  -webkit-box-align: center;
+  -moz-box-align: center;
+  -o-box-align: center;
+  -ms-flex-align: center;
+  -webkit-align-items: center;
+  align-items: center;
+  -webkit-box-pack: center;
+  -moz-box-pack: center;
+  -o-box-pack: center;
+  -ms-flex-pack: center;
+  -webkit-justify-content: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: -webkit-linear-gradient(315deg, #6c757d, #495057);
+  background: -moz-linear-gradient(315deg, #6c757d, #495057);
+  background: -o-linear-gradient(315deg, #6c757d, #495057);
+  background: -ms-linear-gradient(315deg, #6c757d, #495057);
+  background: linear-gradient(135deg, #6c757d, #495057);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 50%;
+  font-size: 18px;
+  -webkit-transition: all 0.3s ease;
+  -moz-transition: all 0.3s ease;
+  -o-transition: all 0.3s ease;
+  -ms-transition: all 0.3s ease;
+  transition: all 0.3s ease;
+  border: none;
+}
+#category .category-header .back-btn:hover {
+  -webkit-transform: translateX(-4px);
+  -moz-transform: translateX(-4px);
+  -o-transform: translateX(-4px);
+  -ms-transform: translateX(-4px);
+  transform: translateX(-4px);
+  -webkit-box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+}
 #category .category-header .category-info {
   display: -webkit-box;
   display: -moz-box;
@@ -2819,8 +2865,8 @@ figure.highlight pre .javascript .function {
 }
 #category .category-posts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
 }
 #category .category-post-card {
   position: relative;
@@ -3135,6 +3181,52 @@ figure.highlight pre .javascript .function {
   align-items: center;
   gap: 16px;
 }
+#tag .tag-header .back-btn {
+  display: -webkit-box;
+  display: -moz-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: box;
+  display: flex;
+  -webkit-box-align: center;
+  -moz-box-align: center;
+  -o-box-align: center;
+  -ms-flex-align: center;
+  -webkit-align-items: center;
+  align-items: center;
+  -webkit-box-pack: center;
+  -moz-box-pack: center;
+  -o-box-pack: center;
+  -ms-flex-pack: center;
+  -webkit-justify-content: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: -webkit-linear-gradient(315deg, #6c757d, #495057);
+  background: -moz-linear-gradient(315deg, #6c757d, #495057);
+  background: -o-linear-gradient(315deg, #6c757d, #495057);
+  background: -ms-linear-gradient(315deg, #6c757d, #495057);
+  background: linear-gradient(135deg, #6c757d, #495057);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 50%;
+  font-size: 18px;
+  -webkit-transition: all 0.3s ease;
+  -moz-transition: all 0.3s ease;
+  -o-transition: all 0.3s ease;
+  -ms-transition: all 0.3s ease;
+  transition: all 0.3s ease;
+  border: none;
+}
+#tag .tag-header .back-btn:hover {
+  -webkit-transform: translateX(-4px);
+  -moz-transform: translateX(-4px);
+  -o-transform: translateX(-4px);
+  -ms-transform: translateX(-4px);
+  transform: translateX(-4px);
+  -webkit-box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+}
 #tag .tag-header .tag-info {
   display: -webkit-box;
   display: -moz-box;
@@ -3222,8 +3314,8 @@ figure.highlight pre .javascript .function {
 }
 #tag .tag-posts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
 }
 #tag .tag-post-card {
   position: relative;
