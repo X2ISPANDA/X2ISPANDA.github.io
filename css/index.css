@@ -6742,6 +6742,122 @@ figure.highlight pre .javascript .function {
   line-height: 1.5;
   word-break: break-all;
 }
+@media screen and (max-width: 768px) {
+  .post-info-card {
+    max-width: 100% !important;
+    width: calc(100% - 20px) !important;
+    margin: 0 10px 16px !important;
+    overflow: visible !important;
+    position: relative !important;
+    min-width: auto !important;
+    -webkit-box-sizing: border-box !important;
+    -moz-box-sizing: border-box !important;
+    box-sizing: border-box !important;
+  }
+  .post-info-card .post-info-card-header {
+    padding: 10px 12px;
+    overflow: visible;
+    -webkit-box-sizing: border-box !important;
+    -moz-box-sizing: border-box !important;
+    box-sizing: border-box !important;
+  }
+  .post-info-card .post-info-card-header .post-info-card-title-wrapper {
+    gap: 6px;
+  }
+  .post-info-card .post-info-card-header .post-info-card-title-wrapper .post-info-card-icon {
+    font-size: 14px;
+  }
+  .post-info-card .post-info-card-header .post-info-card-title-wrapper .post-info-card-title-text {
+    font-size: 13px;
+  }
+  .post-info-card .post-info-card-body {
+    -webkit-box-orient: vertical;
+    -moz-box-orient: vertical;
+    -o-box-orient: vertical;
+    -webkit-flex-direction: column !important;
+    -ms-flex-direction: column !important;
+    flex-direction: column !important;
+    padding: 10px;
+    gap: 10px;
+    overflow: visible !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 100% !important;
+    display: -webkit-box !important;
+    display: -moz-box !important;
+    display: -webkit-flex !important;
+    display: -ms-flexbox !important;
+    display: box !important;
+    display: flex !important;
+    -webkit-box-sizing: border-box !important;
+    -moz-box-sizing: border-box !important;
+    box-sizing: border-box !important;
+  }
+  .post-info-card .post-info-card-body .post-info-card-cover-wrapper {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto !important;
+  }
+  .post-info-card .post-info-card-body .post-info-card-content {
+    width: 100% !important;
+    overflow: visible !important;
+    -webkit-box-flex: 0;
+    -moz-box-flex: 0;
+    -o-box-flex: 0;
+    box-flex: 0;
+    -webkit-flex: none !important;
+    -ms-flex: none !important;
+    flex: none !important;
+    max-width: 100% !important;
+    -webkit-box-sizing: border-box !important;
+    -moz-box-sizing: border-box !important;
+    box-sizing: border-box !important;
+  }
+  .post-info-card .post-info-card-body .post-info-card-content .post-info-card-item {
+    display: -webkit-box !important;
+    display: -moz-box !important;
+    display: -webkit-flex !important;
+    display: -ms-flexbox !important;
+    display: box !important;
+    display: flex !important;
+    -webkit-box-lines: multiple;
+    -moz-box-lines: multiple;
+    -o-box-lines: multiple;
+    -webkit-flex-wrap: wrap !important;
+    -ms-flex-wrap: wrap !important;
+    flex-wrap: wrap !important;
+    -webkit-box-align: start;
+    -moz-box-align: start;
+    -o-box-align: start;
+    -ms-flex-align: start;
+    -webkit-align-items: flex-start !important;
+    align-items: flex-start !important;
+    margin: 4px 0;
+    font-size: 0.85em;
+    overflow: visible !important;
+    word-break: break-all !important;
+    width: 100% !important;
+  }
+  .post-info-card .post-info-card-body .post-info-card-content .post-info-card-item .post-info-card-label {
+    font-size: 0.9em;
+    min-width: 45px;
+    -webkit-flex-shrink: 0;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .post-info-card .post-info-card-body .post-info-card-content .post-info-card-item .post-info-card-value,
+  .post-info-card .post-info-card-body .post-info-card-content .post-info-card-item .post-info-card-value-link {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    -webkit-flex-shrink: 0;
+    flex-shrink: 0;
+    word-break: break-all !important;
+    max-width: calc(100% - 55px) !important;
+  }
+  .post-info-card .post-info-card-body .post-info-card-content .post-info-card-item .post-info-card-link-icon {
+    font-size: 10px;
+  }
+}
 @-moz-keyframes pulse {
   0%, 100% {
     opacity: 1;
