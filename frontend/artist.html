@@ -1,0 +1,537 @@
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>艺术家详情 - LrcShare</title>
+  <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
+  <script src="supabase-client.js"></script>
+  <script>
+    const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
+    function generateAvatar(name) {
+      return DEFAULT_LOGO;
+    }
+  </script>
+  <style>
+    .tab-active {
+      color: #ec4899;
+      border-bottom: 3px solid #ec4899;
+    }
+    .tab-inactive {
+      color: #6b7280;
+      border-bottom: 3px solid transparent;
+    }
+    .tab-inactive:hover {
+      color: #ec4899;
+    }
+    .song-row:hover {
+      background: linear-gradient(90deg, #fdf2f8 0%, #faf5ff 100%);
+    }
+    .album-card:hover {
+      transform: translateY(-2px);
+    }
+    .artist-bg-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 200px;
+    }
+    .artist-bg-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+    }
+    .artist-bg-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.25) 100%);
+      z-index: 1;
+    }
+    .artist-bg-content {
+      position: relative;
+      z-index: 2;
+    }
+    /* 图片预览 */
+    .img-preview {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .img-preview.active {
+      display: flex;
+    }
+    .img-preview img {
+      max-width: 90%;
+      max-height: 90vh;
+      object-fit: contain;
+      transition: transform 0.3s ease;
+      cursor: zoom-in;
+    }
+    .img-preview img.zoomed {
+      cursor: zoom-out;
+    }
+    .img-preview-btn {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      transition: background 0.2s;
+    }
+    .img-preview-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .img-preview-close {
+      top: 20px;
+      right: 20px;
+    }
+    .img-preview-prev {
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .img-preview-next {
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .img-preview-counter {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 14px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 6px 16px;
+      border-radius: 20px;
+    }
+    .clickable-img {
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .clickable-img:hover {
+      opacity: 0.85;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <main class="max-w-5xl mx-auto px-4 py-8">
+    <div id="artistPage" class="space-y-6"></div>
+  </main>
+
+  <!-- 图片预览模态框 -->
+  <div id="imgPreview" class="img-preview">
+    <button class="img-preview-btn img-preview-close" onclick="closeImgPreview()">✕</button>
+    <button class="img-preview-btn img-preview-prev" onclick="prevImg()">‹</button>
+    <img id="previewImg" src="" alt="" onclick="toggleZoom(this)" />
+    <button class="img-preview-btn img-preview-next" onclick="nextImg()">›</button>
+    <div id="previewCounter" class="img-preview-counter"></div>
+  </div>
+
+  <script>
+    // 图片预览功能
+    let previewImages = [];
+    let previewIndex = 0;
+    let previewScale = 1;
+
+    function openImgPreview(images, index = 0) {
+      previewImages = images;
+      previewIndex = index;
+      previewScale = 1;
+      updatePreviewImg();
+      document.getElementById('imgPreview').classList.add('active');
+    }
+
+    function closeImgPreview() {
+      document.getElementById('imgPreview').classList.remove('active');
+      document.getElementById('previewImg').classList.remove('zoomed');
+      previewScale = 1;
+    }
+
+    function updatePreviewImg() {
+      const img = document.getElementById('previewImg');
+      img.src = previewImages[previewIndex];
+      img.style.transform = `scale(${previewScale})`;
+      document.getElementById('previewCounter').textContent = `${previewIndex + 1} / ${previewImages.length}`;
+    }
+
+    function prevImg() {
+      if (previewIndex > 0) {
+        previewIndex--;
+        previewScale = 1;
+        updatePreviewImg();
+      }
+    }
+
+    function nextImg() {
+      if (previewIndex < previewImages.length - 1) {
+        previewIndex++;
+        previewScale = 1;
+        updatePreviewImg();
+      }
+    }
+
+    function toggleZoom(imgEl) {
+      if (previewScale === 1) {
+        previewScale = 2;
+        imgEl.classList.add('zoomed');
+      } else {
+        previewScale = 1;
+        imgEl.classList.remove('zoomed');
+      }
+      imgEl.style.transform = `scale(${previewScale})`;
+    }
+
+    // 全局键盘事件
+    document.addEventListener('keydown', (e) => {
+      if (document.getElementById('imgPreview').classList.contains('active')) {
+        if (e.key === 'Escape') closeImgPreview();
+        if (e.key === 'ArrowLeft') prevImg();
+        if (e.key === 'ArrowRight') nextImg();
+      }
+    });
+
+    // 点击背景关闭
+    document.getElementById('imgPreview').addEventListener('click', (e) => {
+      if (e.target.id === 'imgPreview') closeImgPreview();
+    });
+  </script>
+
+  <script>
+    const api = window.LRCSHAPE_API;
+
+    const TYPE_LABELS = {
+      singer: '歌手',
+      lyricist: '作词人',
+      composer: '作曲人',
+      arranger: '编曲人'
+    };
+
+    const TYPE_ICONS = {
+      singer: '🎤',
+      lyricist: '📝',
+      composer: '🎼',
+      arranger: '🎹'
+    };
+
+    const TYPE_DESCRIPTIONS = {
+      singer: '演唱',
+      lyricist: '作词',
+      composer: '作曲',
+      arranger: '编曲'
+    };
+
+    let artistData = null;
+    let currentTab = 'songs';
+
+    async function initArtist() {
+      const params = new URLSearchParams(window.location.search);
+      const artistId = params.get('id');
+      if (!artistId) { window.location.href = './artists.html'; return; }
+
+      artistData = await api.getArtist(artistId);
+      if (!artistData) { alert('艺术家不存在'); window.location.href = './artists.html'; return; }
+      const [allSongs, allAlbums] = await Promise.all([
+        api.getSongs(),
+        api.getAlbums(true)
+      ]);
+      // 筛选该艺术家参与的所有歌曲，并计算贡献类型
+      artistData.songs = allSongs.filter(s => {
+        return (s.artist_ids && Array.isArray(s.artist_ids) && s.artist_ids.includes(artistId)) ||
+          (s.lyricist && s.lyricist.split(',').map(x => x.trim()).includes(artistId)) ||
+          (s.composer && s.composer.split(',').map(x => x.trim()).includes(artistId)) ||
+          (s.arranger && s.arranger.split(',').map(x => x.trim()).includes(artistId));
+      }).map(s => {
+        const contributions = [];
+        if (s.artist_ids && Array.isArray(s.artist_ids) && s.artist_ids.includes(artistId)) contributions.push('singer');
+        if (s.lyricist && s.lyricist.split(',').map(x => x.trim()).includes(artistId)) contributions.push('lyricist');
+        if (s.composer && s.composer.split(',').map(x => x.trim()).includes(artistId)) contributions.push('composer');
+        if (s.arranger && s.arranger.split(',').map(x => x.trim()).includes(artistId)) contributions.push('arranger');
+        return { ...s, contributions };
+      });
+      artistData.albums = allAlbums.filter(a => a.artist_ids && Array.isArray(a.artist_ids) && a.artist_ids.includes(artistId));
+      
+      renderArtistHeader();
+      renderTabs();
+      switchTab('songs');
+    }
+
+    function formatDuration(d) {
+      if (!d || d === 'NULL' || d === 'null') return '--:--';
+      // mm:ss.xxx → mm:ss
+      let s = String(d).trim();
+      // 如果是 mm:ss.xxx 格式，去掉小数点后的部分
+      const dotIdx = s.indexOf('.');
+      if (dotIdx !== -1) s = s.substring(0, dotIdx);
+      // 如果只有一个冒号，补零
+      const parts = s.split(':');
+      if (parts.length === 2) {
+        const mm = parts[0].padStart(2, '0');
+        const ss = parts[1].padStart(2, '0');
+        return `${mm}:${ss}`;
+      }
+      // 异常格式，返回原值
+      return s;
+    }
+
+    function renderArtistHeader() {
+      const artist = artistData;
+      const avatar = artist.avatar || generateAvatar(artist.name);
+      const types = artist.types || ['singer'];
+      
+      const songCount = artist.songs ? artist.songs.length : 0;
+      const albumCount = artist.albums ? artist.albums.length : 0;
+      
+      // 生成多类型标签
+      const typeBadges = types.map(t => {
+        const label = TYPE_LABELS[t] || t;
+        const icon = TYPE_ICONS[t] || '🎨';
+        const colorMap = {
+          'singer': 'from-blue-500 to-indigo-500',
+          'lyricist': 'from-green-500 to-teal-500',
+          'composer': 'from-purple-500 to-pink-500',
+          'arranger': 'from-amber-500 to-orange-500'
+        };
+        const color = colorMap[t] || 'from-gray-500 to-gray-600';
+        return `<span class="text-sm bg-gradient-to-r ${color} text-white px-3 py-1 rounded-full">${icon} ${label}</span>`;
+      }).join('');
+      
+      document.getElementById('artistPage').innerHTML = `
+        <!-- Header Card -->
+        <div class="artist-bg-card rounded-2xl shadow-sm">
+          ${artist.bg_image
+            ? `<img src="${artist.bg_image}" alt="" class="artist-bg-img clickable-img" referrerpolicy="no-referrer" onclick="openImgPreview(['${artist.bg_image}', '${avatar}'], 0)" />`
+            : `<img src="https://i0.hdslb.com/bfs/article/a009cfa6551237d38e6f64ce46fd739037977624.jpg" alt="" class="artist-bg-img clickable-img" referrerpolicy="no-referrer" onclick="openImgPreview(['https://i0.hdslb.com/bfs/article/a009cfa6551237d38e6f64ce46fd739037977624.jpg', '${avatar}'], 0)" />`
+          }
+          <div class="artist-bg-content px-6 py-6">
+            <div class="flex flex-col md:flex-row items-center md:items-end gap-4">
+              <img src="${avatar}" alt="${artist.name}" class="w-28 h-28 rounded-full border-4 border-white shadow-lg bg-gray-200 clickable-img" onclick="openImgPreview(['${avatar}', '${artist.bg_image || 'https://i0.hdslb.com/bfs/article/a009cfa6551237d38e6f64ce46fd739037977624.jpg'}'], 0)" />
+              <div class="pb-2 text-center md:text-left">
+                <div class="flex items-center gap-3 justify-center md:justify-start flex-wrap">
+                  <h1 class="text-3xl font-bold text-white drop-shadow">
+                    ${artist.name}
+                    ${artist.disambiguation ? `<span class="text-base font-normal text-white/80 ml-1">(${artist.disambiguation})</span>` : ''}
+                  </h1>
+                </div>
+                <div class="flex items-center gap-2 mt-2 flex-wrap">
+                  ${typeBadges}
+                </div>
+                ${artist.aliases && artist.aliases.length > 0 ? 
+                  `<div class="text-white/70 text-sm mt-1">别名：${artist.aliases.join('、')}</div>` : ''
+                }
+              </div>
+            </div>
+            <p class="mt-4 text-white/90">${artist.bio || '暂无简介'}</p>
+            <div class="flex gap-6 mt-4 text-sm text-white/80 justify-center md:justify-start">
+              <span class="flex items-center gap-1">🎵 ${songCount} 首作品</span>
+              ${albumCount > 0 ? `<span class="flex items-center gap-1">📀 ${albumCount} 张专辑</span>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="bg-white rounded-2xl shadow-sm">
+          <div id="tabsNav" class="flex border-b border-gray-100 px-6 overflow-x-auto"></div>
+          <div id="tabContent" class="p-6"></div>
+        </div>
+      `;
+    }
+
+    function renderTabs() {
+      const artist = artistData;
+      const types = artist.types || ['singer'];
+      const tabsNav = document.getElementById('tabsNav');
+      
+      // 构建标签页：按 types 字段 + 实际歌曲数 判断
+      let tabs = [];
+      
+      if (types.includes('singer')) {
+        const singerSongs = (artist.songs || []).filter(s => s.contributions && s.contributions.includes('singer'));
+        if (singerSongs.length > 0) {
+          tabs.push({ key: 'singer', label: '🎤 演唱', count: singerSongs.length });
+        }
+      }
+      if (types.includes('lyricist')) {
+        const lyricSongs = (artist.songs || []).filter(s => s.contributions && s.contributions.includes('lyricist'));
+        if (lyricSongs.length > 0) {
+          tabs.push({ key: 'lyricist', label: '📝 作词', count: lyricSongs.length });
+        }
+      }
+      if (types.includes('composer')) {
+        const composeSongs = (artist.songs || []).filter(s => s.contributions && s.contributions.includes('composer'));
+        if (composeSongs.length > 0) {
+          tabs.push({ key: 'composer', label: '🎼 作曲', count: composeSongs.length });
+        }
+      }
+      if (types.includes('arranger')) {
+        const arrangeSongs = (artist.songs || []).filter(s => s.contributions && s.contributions.includes('arranger'));
+        if (arrangeSongs.length > 0) {
+          tabs.push({ key: 'arranger', label: '🎹 编曲', count: arrangeSongs.length });
+        }
+      }
+      
+      // 专辑标签页 - 按年份排序
+      if (artist.albums && artist.albums.length > 0) {
+        artist.albums.sort((a, b) => {
+          const ya = a.year || 9999;
+          const yb = b.year || 9999;
+          if (ya !== yb) return ya - yb;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+        tabs.push({ key: 'albums', label: '📀 专辑', count: artist.albums.length });
+      }
+      
+      // 如果没有分类型标签，用"全部歌曲"
+      if (tabs.length === 0) {
+        tabs.push({ key: 'songs', label: '🎵 歌曲', count: artist.songs ? artist.songs.length : 0 });
+      }
+      
+      tabsNav.innerHTML = tabs.map((tab, i) => `
+        <button class="tab-btn px-4 py-3 font-medium whitespace-nowrap transition ${i === 0 ? 'tab-active' : 'tab-inactive'}" data-tab="${tab.key}">
+          ${tab.label} <span class="text-xs text-gray-400 ml-1">(${tab.count})</span>
+        </button>
+      `).join('');
+      
+      // 设默认标签
+      currentTab = tabs[0].key;
+      
+      // 标签切换
+      tabsNav.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabsNav.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('tab-active');
+            b.classList.add('tab-inactive');
+          });
+          btn.classList.remove('tab-inactive');
+          btn.classList.add('tab-active');
+          currentTab = btn.dataset.tab;
+          switchTab(currentTab);
+        });
+      });
+    }
+
+    function switchTab(tab) {
+      const artist = artistData;
+      const content = document.getElementById('tabContent');
+      
+      if (tab === 'albums') {
+        renderAlbums(artist, content);
+      } else {
+        // tab 可能是 singer/lyricist/composer/arranger，也可能是 songs
+        renderSongsByType(artist, content, tab);
+      }
+    }
+
+    function renderSongsByType(artist, container, typeKey) {
+      const songs = artist.songs || [];
+      const types = artist.types || ['singer'];
+      
+      // 筛选该类型的歌曲
+      let filteredSongs = songs;
+      if (['singer', 'lyricist', 'composer', 'arranger'].includes(typeKey)) {
+        filteredSongs = songs.filter(s => s.contributions && s.contributions.includes(typeKey));
+      }
+      
+      const typeLabels = { singer: '演唱', lyricist: '作词', composer: '作曲', arranger: '编曲' };
+      const typeLabel = typeLabels[typeKey] || '演唱';
+      
+      if (filteredSongs.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12 text-gray-400">
+            <div class="text-4xl mb-3">🎵</div>
+            <p>暂无${typeLabel}的歌曲</p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = `
+        <div class="space-y-1">
+          <div class="grid grid-cols-[30px_1fr_120px_80px] gap-4 px-4 py-2 text-xs text-gray-400 border-b border-gray-100">
+            <span>#</span>
+            <span>歌曲</span>
+            <span>专辑</span>
+            <span class="text-right">时长</span>
+          </div>
+          ${filteredSongs.map((song, i) => {
+            // 显示这首歌的所有贡献类型
+            const contribTags = (song.contributions || []).map(c => {
+              const cl = typeLabels[c] || c;
+              return `<span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 ml-1">${cl}</span>`;
+            }).join('');
+            
+            return `
+              <a href="./song.html?id=${song.id}" class="song-row grid grid-cols-[30px_1fr_120px_80px] gap-4 px-4 py-3 rounded-lg items-center transition group">
+                <span class="text-gray-400 text-sm">${String(i + 1).padStart(2, '0')}</span>
+                <div class="min-w-0">
+                  <div class="font-medium text-gray-800 truncate group-hover:text-pink-600">${song.title}</div>
+                  ${contribTags ? `<div class="mt-1">${contribTags}</div>` : ''}
+                </div>
+                <div class="text-sm text-gray-500 truncate">${song.album_name || '未知'}</div>
+                <div class="text-sm text-gray-400 text-right tabular-nums">${formatDuration(song.duration)}</div>
+              </a>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function renderSongs(artist, container) {
+      renderSongsByType(artist, container, 'songs');
+    }
+
+    function renderAlbums(artist, container) {
+      const albums = artist.albums || [];
+      
+      if (albums.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12 text-gray-400">
+            <div class="text-4xl mb-3">📀</div>
+            <p>暂无专辑</p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          ${albums.map(album => `
+            <a href="./album.html?id=${album.id}" class="album-card flex items-center gap-4 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition">
+              <div class="w-14 h-14 bg-gradient-to-br from-pink-400 to-purple-500 rounded-lg flex items-center justify-center text-white text-xl flex-shrink-0 overflow-hidden">
+                ${album.cover ? `<img src="${album.cover}" class="w-full h-full rounded-lg object-cover clickable-img" onclick="event.preventDefault(); event.stopPropagation(); openImgPreview(['${album.cover}'], 0)" />` : `<img src="${DEFAULT_LOGO}" class="w-full h-full rounded-lg object-contain p-1" />`}
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="font-medium text-gray-800 truncate">${album.name}</div>
+                <div class="text-sm text-gray-500">
+                  ${album.year || ''} · ${album.song_count || 0} 首歌曲
+                </div>
+              </div>
+            </a>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    initArtist();
+  </script>
+  <script src="layout.js"></script>
+</body>
+</html>

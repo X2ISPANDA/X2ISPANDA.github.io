@@ -1,0 +1,71 @@
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>关于 LrcShare</title>
+  <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
+  <script src="supabase-client.js"></script>
+  <script>
+    const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    /* 文章内容排版 */
+    .article-content h1 { font-size: 1.875rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 1rem; color: #1f2937; }
+    .article-content h2 { font-size: 1.5rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #1f2937; }
+    .article-content h3 { font-size: 1.25rem; font-weight: 600; margin-top: 1.25rem; margin-bottom: 0.5rem; color: #374151; }
+    .article-content h4 { font-size: 1.125rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; color: #374151; }
+    .article-content p { margin-bottom: 1rem; line-height: 1.75; color: #4b5563; }
+    .article-content ul { padding-left: 1.5rem; margin-bottom: 1rem; list-style-type: disc; }
+    .article-content ol { padding-left: 1.5rem; margin-bottom: 1rem; list-style-type: decimal; }
+    .article-content li { margin-bottom: 0.25rem; line-height: 1.75; color: #4b5563; }
+    .article-content a { color: #db2777; text-decoration: none; }
+    .article-content a:hover { text-decoration: underline; }
+    .article-content blockquote { border-left: 4px solid #ec4899; padding-left: 1rem; margin: 1rem 0; color: #6b7280; font-style: italic; }
+    .article-content code { background-color: #f3f4f6; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875rem; }
+    .article-content pre { background-color: #1f2937; color: #e5e7eb; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1rem; }
+    .article-content pre code { background-color: transparent; padding: 0; color: inherit; }
+    .article-content img { max-width: 100%; border-radius: 0.5rem; margin: 1rem 0; }
+    .article-content table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+    .article-content th, .article-content td { border: 1px solid #e5e7eb; padding: 0.5rem 0.75rem; text-align: left; }
+    .article-content th { background-color: #f9fafb; font-weight: 600; }
+    .article-content hr { margin: 1.5rem 0; border-color: #e5e7eb; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <main class="max-w-4xl mx-auto px-4 py-10">
+    <div class="bg-white rounded-2xl shadow-sm p-8">
+      <div class="text-sm text-pink-500 mb-2">了解更多</div>
+      <h1 class="text-3xl font-bold text-gray-800 mb-6">关于 LrcShare</h1>
+      <div id="articleContent" class="article-content">
+        <div class="text-center py-8 text-gray-400">加载中... 如果数据库未配置关于页内容，请执行 extras.sql</div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const api = window.LRCSHAPE_API;
+
+    async function initAbout() {
+      try {
+        const article = await api.getArticleBySlug('about');
+        if (article && article.content) {
+          document.getElementById('articleContent').innerHTML = article.content;
+        }
+      } catch (err) {
+        console.error('加载关于页内容失败:', err);
+        document.getElementById('articleContent').innerHTML = '<div class="text-center py-8 text-gray-500">加载中... 如果数据库未配置关于页内容，请执行 extras.sql</div>';
+      }
+    }
+
+    initAbout();
+  </script>
+  <!-- 共享布局：导航栏 + 页脚 + 搜索弹窗 -->
+  <script src="layout.js"></script>
+</body>
+</html>

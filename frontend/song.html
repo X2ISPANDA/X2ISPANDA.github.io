@@ -1,0 +1,654 @@
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>歌曲详情 - LrcShare</title>
+  <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
+  <script src="supabase-client.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .lyric-line { transition: all 0.2s; padding: 4px 0; }
+    .lyric-line:hover { color: inherit; transform: none; }
+    .lrc-time { color: inherit; font-weight: normal; }
+    .lrc-text { color: #374151; }
+    .tab-btn { transition: all 0.2s; }
+    .tab-active { color: #ec4899; border-bottom-color: #ec4899; }
+    .tab-inactive { color: #9ca3af; border-bottom-color: transparent; }
+    .gradient-header {
+      background: linear-gradient(135deg, #1e1b4b 0%, #7c3aed 50%, #ec4899 100%);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .song-card {
+      transition: all 0.2s;
+    }
+    .song-card:hover {
+      background: linear-gradient(90deg, #fdf2f8 0%, #faf5ff 100%);
+      border-left: 3px solid #ec4899;
+    }
+    /* Hexo Tip Box Styles */
+    .tip-box {
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin: 16px 0;
+      border: 1px solid transparent;
+      display: flex;
+      gap: 12px;
+      line-height: 1.7;
+      font-size: 0.95rem;
+    }
+    .tip-box .tip-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .tip-box .tip-content {
+      flex: 1;
+    }
+    .tip-box.tip-bell {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      color: #9a3412;
+    }
+    .tip-box.tip-info {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+      color: #1e40af;
+    }
+    .tip-box.tip-success {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+      color: #166534;
+    }
+    .tip-box.tip-warning {
+      background: #fefce8;
+      border-color: #fde68a;
+      color: #854d0e;
+    }
+    .tip-box.tip-danger {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #991b1b;
+    }
+    .tip-box.tip-tip {
+      background: #f0f9ff;
+      border-color: #bae6fd;
+      color: #075985;
+    }
+    .tip-box.tip-note {
+      background: #faf5ff;
+      border-color: #e9d5ff;
+      color: #6b21a8;
+    }
+    .tip-box.tip-important {
+      background: #fdf4ff;
+      border-color: #f5d0fe;
+      color: #86198f;
+    }
+    .tip-box h1, .tip-box h2, .tip-box h3 { margin-top: 0; }
+    .tip-box p { margin: 0; }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <main class="max-w-5xl mx-auto px-4 py-8">
+    <div id="songDetail"></div>
+  </main>
+
+  <script>
+    const api = window.LRCSHAPE_API;
+
+    function formatDuration(d) {
+      if (!d || d === 'NULL' || d === 'null') return '--:--';
+      let s = String(d).trim().split('.')[0];
+      const parts = s.split(':');
+      if (parts.length === 2) {
+        return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+      }
+      return s;
+    }
+    let currentSong = null;
+    // 隐藏歌词占位图
+    const HIDDEN_PLACEHOLDER_IMG = 'https://i0.hdslb.com/bfs/article/c07c33a93366f960bdef02ff5411c99837977624.png';
+
+    // 检查当前会话是否已解锁隐藏歌词
+    function isHiddenUnlocked() {
+      return sessionStorage.getItem('unlock_hidden') === 'true';
+    }
+
+    // 渲染隐藏歌词占位页
+    function renderHiddenPlaceholder(song) {
+      document.getElementById('songDetail').innerHTML = `
+        <div class="flex flex-col items-center justify-center py-20">
+          <img src="${HIDDEN_PLACEHOLDER_IMG}" alt="此歌词已被隐藏" class="max-w-md w-full rounded-2xl shadow-lg mb-8" />
+          <p class="text-gray-400 text-lg text-center mb-6">此歌词已被隐藏</p>
+          <button onclick="unlockHidden()" class="px-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition shadow-md">
+            🔑 输入口令解锁
+          </button>
+        </div>
+      `;
+    }
+
+    async function initSong() {
+      const params = new URLSearchParams(window.location.search);
+      const songId = params.get('id');
+      if (!songId) { window.location.href = './index.html'; return; }
+
+      try {
+        currentSong = await api.getSong(songId);
+        if (!currentSong) { alert('歌曲不存在'); window.location.href = './index.html'; return; }
+
+        // 隐藏歌词处理：未解锁则展示占位内容
+        if (currentSong.is_hidden && !isHiddenUnlocked()) {
+          renderHiddenPlaceholder(currentSong);
+          return;
+        }
+
+        const artistIds = currentSong.artist_ids || [];
+        const allArtists = await api.getArtists();
+        const artistMap = {};
+        allArtists.forEach(a => { artistMap[a.id] = a; });
+
+        // 主艺术家（用于头像显示）
+        const mainArtist = artistIds.length > 0 ? artistMap[artistIds[0]] : null;
+        const album = currentSong.album_id ? await api.getAlbum(currentSong.album_id) : null;
+
+        // 获取贡献者信息
+        let contributorHtml = '';
+        if (currentSong.contributor_id) {
+          try {
+            const contributor = await api.getContributor(currentSong.contributor_id);
+            if (contributor) {
+              const contributorLink = contributor.public_homepage
+                ? `<a href="./contributor.html?id=${contributor.id}" class="text-pink-600 hover:underline">${contributor.name}</a>`
+                : contributor.name;
+              contributorHtml = `<div><div class="text-xs text-gray-400 mb-1">歌词贡献</div><div class="font-medium text-gray-700">${contributorLink}</div></div>`;
+            }
+          } catch (e) { console.error('获取贡献者失败:', e); }
+        }
+
+        // 歌曲艺术家HTML（多艺术家链接）
+        const songArtistHtml = artistIds.length > 0
+          ? artistIds.map(id => {
+              const a = artistMap[id];
+              if (a) return `<a href="./artist.html?id=${a.id}" class="hover:underline" data-nolink>${a.name}</a>`;
+              return '';
+            }).filter(Boolean).join(' / ')
+          : '未知';
+
+        // 获取所有艺术家用于解析作词/作曲/编曲的ID
+        const resolveNames = (ids) => {
+          if (!ids) return '-';
+          const idList = ids.split(',').map(id => id.trim()).filter(id => id);
+          if (idList.length === 0) return '-';
+          return idList.map(aid => {
+            const a = artistMap[aid];
+            if (a) return `<a href="./artist.html?id=${a.id}" class="text-pink-600 hover:underline">${a.name}</a>`;
+            return aid;
+          }).join(', ');
+        };
+
+        const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
+        const cover = (album && album.cover) ? album.cover : (mainArtist && mainArtist.avatar ? mainArtist.avatar : DEFAULT_LOGO);
+
+        document.getElementById('songDetail').innerHTML = `
+        <!-- Header Card -->
+        <div class="gradient-header rounded-3xl p-8 text-white shadow-2xl mb-6">
+          <div class="flex items-center gap-6 flex-col md:flex-row">
+            <div class="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center shadow-xl flex-shrink-0 overflow-hidden">
+              ${cover ? `<img src="${cover}" class="w-full h-full rounded-2xl ${cover === DEFAULT_LOGO ? 'object-contain p-2' : 'object-cover'}" />` : '💿'}
+            </div>
+            <div class="flex-1 text-center md:text-left">
+              <h1 class="text-3xl md:text-4xl font-bold mb-2">${currentSong.title}</h1>
+              <div class="text-lg opacity-90">
+                ${songArtistHtml}
+                ·
+                <a href="./album.html?id=${currentSong.album_id}" class="hover:underline" data-nolink>${album ? album.name : '未知'}</a>
+                ${album && album.year ? ` · ${album.year}` : ''}
+                ${(currentSong.track && currentSong.track > 0) ? ` · <span class="text-sm bg-white/20 px-2 py-0.5 rounded">曲目 ${currentSong.track}</span>` : ''}
+              </div>
+              ${(currentSong.genres && currentSong.genres.length > 0) ? `
+              <div class="flex flex-wrap gap-2 mt-3 justify-center md:justify-start">
+                ${currentSong.genres.map(g => `<span class="text-xs bg-white/20 px-2.5 py-1 rounded-full">${escapeHtml(g)}</span>`).join('')}
+              </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+
+        <!-- Info Bar -->
+        <div class="bg-white rounded-2xl shadow-sm p-4 mb-6">
+          <div class="grid grid-cols-2 md:grid-cols-${contributorHtml ? '5' : '4'} gap-4 text-center">
+            <div>
+              <div class="text-xs text-gray-400 mb-1">作词</div>
+              <div class="font-medium text-gray-700">${resolveNames(currentSong.lyricist)}</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-400 mb-1">作曲</div>
+              <div class="font-medium text-gray-700">${resolveNames(currentSong.composer)}</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-400 mb-1">编曲</div>
+              <div class="font-medium text-gray-700">${resolveNames(currentSong.arranger)}</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-400 mb-1">时长</div>
+              <div class="font-medium text-gray-700 tabular-nums">${formatDuration(currentSong.duration)}</div>
+            </div>
+            ${contributorHtml}
+          </div>
+        </div>
+
+        ${currentSong.description ? `
+        <!-- 歌曲简介 -->
+        <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
+          <h3 class="text-lg font-bold text-gray-800 mb-3">📝 歌曲简介</h3>
+          <div class="text-gray-600 leading-relaxed prose prose-sm max-w-none" id="songDescription"></div>
+        </div>
+        ` : ''}
+
+        ${currentSong.video_url ? `
+        <!-- 视频播放器 -->
+        <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
+          <h3 class="text-lg font-bold text-gray-800 mb-3">▶️ 视频播放</h3>
+          <div class="flex justify-center" id="videoPlayer"></div>
+        </div>
+        ` : ''}
+
+        <!-- Lyrics Section -->
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
+          <div class="flex border-b">
+            <button id="tabText" class="flex-1 py-4 font-medium tab-btn ${currentSong.lyrics_text ? 'tab-active' : 'tab-inactive'}">📖 文本歌词</button>
+            <button id="tabLrc" class="flex-1 py-4 font-medium tab-btn ${currentSong.lyrics_text ? 'tab-inactive' : 'tab-active'}">⏱️ LRC 歌词</button>
+          </div>
+          <div class="p-6 md:p-8">
+            <div id="textLyrics" class="text-center leading-loose text-gray-700 text-lg ${currentSong.lyrics_text ? '' : 'hidden'}"></div>
+            <div id="lrcLyrics" class="text-left leading-relaxed text-lg ${currentSong.lyrics_text ? 'hidden' : ''}"></div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3 justify-center mb-6 flex-wrap">
+          <button onclick="copyLrc()" class="px-6 py-3 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition shadow-md">
+            📋 复制 LRC
+          </button>
+          <button onclick="shareSong()" class="px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition shadow-md">
+            🔗 分享链接
+          </button>
+          <button onclick="showReward()" class="px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-xl hover:from-yellow-500 hover:to-orange-600 transition shadow-md">
+            ⚡ 请我喝杯奶茶
+          </button>
+        </div>
+
+        <!-- 赞助二维码弹窗 -->
+        <div id="rewardModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-xl font-bold text-gray-800">赞助 LrcShare</h3>
+              <button onclick="closeReward()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div class="text-center text-gray-500 mb-4">觉得有用？请站长喝杯奶茶吧～</div>
+            <div class="flex justify-center gap-4">
+              <div class="text-center">
+                <div class="w-40 h-40 rounded-xl overflow-hidden mb-2 border border-gray-100">
+                  <img src="/assets/img/Wechat.jpg" class="w-full h-full object-cover" alt="微信赞助" />
+                </div>
+                <div class="text-sm text-gray-600">微信赞助</div>
+              </div>
+              <div class="text-center">
+                <div class="w-40 h-40 rounded-xl overflow-hidden mb-2 border border-gray-100">
+                  <img src="/assets/img/Alipay.jpg" class="w-full h-full object-cover" alt="支付宝赞助" />
+                </div>
+                <div class="text-sm text-gray-600">支付宝赞助</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Related Songs -->
+        <div id="relatedSongs"></div>
+
+        <!-- Comments -->
+        <div class="bg-white rounded-2xl shadow-sm p-6 mt-6">
+          <h3 class="text-xl font-bold mb-4">💬 评论</h3>
+          <div id="commentForm" class="mb-6">
+            <div class="flex gap-2 mb-3">
+              <input type="text" id="commentName" placeholder="你的昵称" class="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" />
+              <input type="email" id="commentEmail" placeholder="邮箱（可选）" class="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" />
+            </div>
+            <textarea id="commentContent" rows="3" placeholder="写下你的评论..." class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"></textarea>
+            <div class="flex justify-between items-center mt-2">
+              <span class="text-xs text-gray-400">请文明发言，理性讨论</span>
+              <button id="submitComment" class="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition">发表评论</button>
+            </div>
+          </div>
+          <div id="commentsList" class="space-y-4"></div>
+        </div>
+      `;
+
+      // 文本歌词：优先使用 HTML 格式的 lyrics_text，否则从 LRC 提取纯文本
+      const textLyricsEl = document.getElementById('textLyrics');
+      if (currentSong.lyrics_text) {
+        textLyricsEl.innerHTML = currentSong.lyrics_text.replace(/\n/g, '<br>');
+      } else {
+        const text = extractText(currentSong.lrc_text);
+        // 用 <br> 替换换行符，保持居中格式
+        textLyricsEl.innerHTML = text.split('\n').map(line => line || '&nbsp;').join('<br>');
+      }
+
+      // LRC 歌词（带时间轴）
+      renderLrcLines(currentSong.lrc_text);
+
+      // 歌曲简介（Markdown 渲染 + Hexo tip 标签支持）
+      if (currentSong.description) {
+        const descEl = document.getElementById('songDescription');
+        if (descEl && typeof marked !== 'undefined') {
+          const processed = preprocessMarkdown(currentSong.description);
+          descEl.innerHTML = marked.parse(processed);
+        }
+      }
+
+      // 视频播放器
+      if (currentSong.video_url) {
+        renderVideoPlayer(currentSong.video_url);
+      }
+
+      // Tab 切换
+      document.getElementById('tabText').addEventListener('click', () => {
+        document.getElementById('tabText').classList.remove('tab-inactive');
+        document.getElementById('tabText').classList.add('tab-active');
+        document.getElementById('tabLrc').classList.remove('tab-active');
+        document.getElementById('tabLrc').classList.add('tab-inactive');
+        document.getElementById('textLyrics').classList.remove('hidden');
+        document.getElementById('lrcLyrics').classList.add('hidden');
+      });
+
+      document.getElementById('tabLrc').addEventListener('click', () => {
+        document.getElementById('tabLrc').classList.remove('tab-inactive');
+        document.getElementById('tabLrc').classList.add('tab-active');
+        document.getElementById('tabText').classList.remove('tab-active');
+        document.getElementById('tabText').classList.add('tab-inactive');
+        document.getElementById('lrcLyrics').classList.remove('hidden');
+        document.getElementById('textLyrics').classList.add('hidden');
+      });
+
+      // 赞助弹窗事件绑定（在 innerHTML 注入后绑定）
+      const rewardModal = document.getElementById('rewardModal');
+      if (rewardModal) {
+        rewardModal.addEventListener('click', (e) => {
+          if (e.target.id === 'rewardModal') closeReward();
+        });
+      }
+
+      // 相关歌曲
+      renderRelatedSongs(currentSong, mainArtist, album);
+
+      // 评论系统
+      loadComments(songId);
+
+      document.getElementById('submitComment').addEventListener('click', async () => {
+        const name = document.getElementById('commentName').value.trim();
+        const email = document.getElementById('commentEmail').value.trim();
+        const content = document.getElementById('commentContent').value.trim();
+
+        if (!name || !content) {
+          alert('请填写昵称和评论内容');
+          return;
+        }
+
+        try {
+          await api.addComment(songId, content, name);
+          document.getElementById('commentName').value = '';
+          document.getElementById('commentEmail').value = '';
+          document.getElementById('commentContent').value = '';
+          loadComments(songId);
+        } catch (err) {
+          alert('发表失败: ' + err.message);
+        }
+      });
+      } catch (err) {
+        console.error('加载歌曲失败:', err);
+        alert('加载失败，请稍后重试');
+      }
+    }
+
+    async function loadComments(songId) {
+      const list = document.getElementById('commentsList');
+      list.innerHTML = '<div class="text-center text-gray-400 py-4">加载评论中...</div>';
+
+      try {
+        const comments = await api.getComments(songId);
+
+        if (comments.length === 0) {
+          list.innerHTML = '<div class="text-center text-gray-400 py-4">暂无评论，来抢沙发吧~</div>';
+          return;
+        }
+
+        list.innerHTML = comments.map(c => `
+          <div class="border-b pb-4">
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-sm">${escapeHtml((c.author || c.user_name || '匿').charAt(0))}</div>
+              <span class="font-medium text-gray-800">${escapeHtml(c.author || c.user_name || '匿名')}</span>
+              <span class="text-xs text-gray-400">${formatTime(c.created_at)}</span>
+            </div>
+            <div class="text-gray-700 pl-10">${escapeHtml(c.content)}</div>
+          </div>
+        `).join('');
+      } catch (err) {
+        list.innerHTML = '<div class="text-center text-gray-400 py-4">加载评论失败</div>';
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function formatTime(timeStr) {
+      const d = new Date(timeStr);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function renderLrcLines(lrcText) {
+      const container = document.getElementById('lrcLyrics');
+      const lines = lrcText.split('\n');
+      const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2})\]/g;
+      let html = '';
+
+      lines.forEach(line => {
+        const matches = [...line.matchAll(timeRegex)];
+        const text = line.replace(timeRegex, '').trim();
+
+        if (!text) return;
+
+        if (matches.length > 0) {
+          matches.forEach(m => {
+            const minutes = m[1];
+            const seconds = m[2];
+            const ms = m[3];
+            html += `<div class="lyric-line py-1"><span class="lrc-time mr-2">[${minutes}:${seconds}.${ms}]</span><span class="lrc-text">${text}</span></div>`;
+          });
+        } else if (!/^\[(ti|ar|al|by)\]/.test(line.trim())) {
+          html += `<div class="lyric-line py-1 pl-2"><span class="lrc-text">${text}</span></div>`;
+        }
+      });
+
+      container.innerHTML = html;
+    }
+
+    function extractText(lrcText) {
+      return lrcText
+        .replace(/\[.*?\]/g, '')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line)
+        .join('\n');
+    }
+
+    const TIP_ICONS = {
+      bell: '🔔', info: 'ℹ️', success: '✅', warning: '⚠️',
+      danger: '❌', tip: '💡', note: '📝', important: '❗'
+    };
+
+    function preprocessMarkdown(md) {
+      return md.replace(/\{%\s*tip\s+(\w+)\s*%\}([\s\S]*?)\{%\s*endtip\s*%\}/g, (match, type, content) => {
+        const icon = TIP_ICONS[type] || '💡';
+        const innerHtml = marked.parse(content.trim());
+        return `<div class="tip-box tip-${type}"><span class="tip-icon">${icon}</span><div class="tip-content">${innerHtml}</div></div>`;
+      });
+    }
+
+    function renderVideoPlayer(url) {
+      const container = document.getElementById('videoPlayer');
+      if (!container) return;
+      let embed = '';
+      // B站：BV号或完整链接
+      const bvMatch = url.match(/BV\w+/i);
+      if (bvMatch || url.includes('bilibili.com')) {
+        const bvid = bvMatch ? bvMatch[0] : '';
+        embed = `<iframe src="https://player.bilibili.com/player.html?bvid=${bvid}&high_quality=1&autoplay=0" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width:100%;max-width:640px;height:360px;border-radius:12px;"></iframe>`;
+      }
+      // YouTube
+      else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        let videoId = '';
+        const watchMatch = url.match(/[?&]v=([^&]+)/);
+        const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
+        videoId = watchMatch ? watchMatch[1] : (shortMatch ? shortMatch[1] : '');
+        if (videoId) {
+          embed = `<iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width:100%;max-width:640px;height:360px;border-radius:12px;"></iframe>`;
+        }
+      }
+      container.innerHTML = embed || `<a href="${url}" target="_blank" class="text-pink-600 hover:underline">${url}</a>`;
+    }
+
+    function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+    }
+
+    function copyLrc() {
+      if (currentSong) {
+        copyText(currentSong.lrc_text);
+        alert('LRC 歌词已复制到剪贴板！');
+      }
+    }
+
+    function shareSong() {
+      copyText(window.location.href);
+      alert('链接已复制到剪贴板！');
+    }
+
+    function showReward() {
+      const m = document.getElementById('rewardModal');
+      if (m) m.classList.remove('hidden');
+    }
+
+    // 解锁隐藏歌词
+    async function unlockHidden() {
+      const input = prompt('请输入解锁口令：');
+      if (!input) return;
+
+      try {
+        // 获取全局口令
+        const { data: setting } = await api.supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'hidden_unlock_code')
+          .single();
+
+        const globalCode = setting?.value || '';
+        const songCode = currentSong?.unlock_code || '';
+
+        if (input === globalCode || (songCode && input === songCode)) {
+          sessionStorage.setItem('unlock_hidden', 'true');
+          alert('解锁成功！');
+          // 重新加载页面以展示真实歌词
+          window.location.reload();
+        } else {
+          alert('口令错误');
+        }
+      } catch (err) {
+        console.error('解锁失败:', err);
+        alert('解锁失败，请稍后重试');
+      }
+    }
+    function closeReward() {
+      const m = document.getElementById('rewardModal');
+      if (m) m.classList.add('hidden');
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeReward();
+    });
+
+    async function renderRelatedSongs(song, artist, album) {
+      const container = document.getElementById('relatedSongs');
+      const songArtistIds = song.artist_ids || [];
+      if (songArtistIds.length === 0) return;
+
+      try {
+        const allSongs = await api.getSongs();
+        const sameArtistSongs = allSongs.filter(s => {
+          const ids = s.artist_ids || [];
+          return ids.some(id => songArtistIds.includes(id)) && s.id !== song.id;
+        });
+        if (sameArtistSongs.length === 0) {
+          container.innerHTML = '';
+          return;
+        }
+
+        const albumsData = await api.getAlbums();
+        const grouped = {};
+        sameArtistSongs.forEach(s => {
+          const albumItem = albumsData.find(a => a.id === s.album_id);
+          const albumName = albumItem ? albumItem.name : '其他';
+          if (!grouped[albumName]) grouped[albumName] = [];
+          grouped[albumName].push(s);
+        });
+
+        let html = `<div class="bg-white rounded-2xl shadow-sm p-6">
+          <h3 class="text-xl font-bold mb-4">🎤 同歌手其他歌曲</h3>`;
+
+        Object.keys(grouped).forEach(albumName => {
+          html += `<div class="mb-4">
+            <div class="text-sm font-medium text-gray-500 mb-2">📀 ${albumName}</div>
+            <div class="flex flex-wrap gap-2">`;
+          grouped[albumName].forEach(s => {
+            html += `<a href="./song.html?id=${s.id}" class="song-card inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-pink-50 rounded-full text-sm text-gray-700 hover:text-pink-600 transition">
+              <span>🎵</span>
+              <span>${s.title}</span>
+              <span class="text-gray-400 text-xs tabular-nums">${formatDuration(s.duration)}</span>
+            </a>`;
+          });
+          html += `</div></div>`;
+        });
+
+        html += `</div>`;
+        container.innerHTML = html;
+      } catch (err) {
+        console.error('加载相关歌曲失败:', err);
+      }
+    }
+
+    initSong();
+  </script>
+  <script src="layout.js"></script>
+</body>
+</html>

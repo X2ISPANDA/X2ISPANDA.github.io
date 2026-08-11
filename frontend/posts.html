@@ -1,0 +1,144 @@
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>站长逼逼 - LrcShare</title>
+  <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+  <script src="/config.js"></script>
+  <script src="supabase-client.js"></script>
+  <script>
+    const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <main class="max-w-5xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-2xl shadow-sm p-8 mb-6">
+      <div class="text-sm text-pink-500 mb-2">My Rambles</div>
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">站长逼逼</h1>
+      <p class="text-gray-500">🔊所有坏孩子音量都拉大！</p>
+    </div>
+
+    <div id="articlesList">
+      <div class="w-full text-center py-16 text-gray-400">加载中...</div>
+    </div>
+
+    <div id="loadMoreWrap" class="text-center mt-6 hidden">
+      <button id="loadMoreBtn" class="px-6 py-2 bg-white rounded-xl shadow-sm text-gray-600 hover:bg-pink-50 hover:text-pink-600 transition">查看更多</button>
+    </div>
+  </main>
+
+  <script>
+    const api = window.LRCSHAPE_API;
+    let allArticles = [];
+    let displayedCount = 0;
+    let ownerName = '';
+    const PAGE_SIZE = 10;
+
+    function stripHtml(html) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html || '';
+      return tmp.textContent || tmp.innerText || '';
+    }
+
+    function markdownToText(md) {
+      if (!md) return '';
+      // 先将 Markdown 渲染为 HTML，再提取纯文本
+      let html = md;
+      if (typeof marked !== 'undefined') {
+        html = marked.parse(md);
+      }
+      return stripHtml(html);
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      return new Date(dateStr).toISOString().slice(0, 10);
+    }
+
+    function getSummary(article) {
+      if (article.summary && article.summary.trim()) return article.summary;
+      // 兼容 Markdown 内容
+      const text = markdownToText(article.content);
+      return text.length > 150 ? text.slice(0, 150) + '...' : text;
+    }
+
+    function renderArticles(reset = false) {
+      const listEl = document.getElementById('articlesList');
+
+      if (reset) displayedCount = 0;
+
+      const toShow = allArticles.slice(0, displayedCount + PAGE_SIZE);
+      displayedCount = toShow.length;
+
+      if (allArticles.length === 0) {
+        listEl.innerHTML = '<div class="w-full text-center py-16 text-gray-400">暂无文章</div>';
+        document.getElementById('loadMoreWrap').classList.add('hidden');
+        return;
+      }
+
+      listEl.innerHTML = toShow.map(article => {
+        const isOwner = article.author === '站长';
+        const displayName = isOwner ? (ownerName || '站长') : (article.author || '站长');
+        const ownerBadge = isOwner ? ' <span class="text-[10px] bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded ml-1">站长</span>' : '';
+        return `
+          <a href="./post.html?slug=${encodeURIComponent(article.slug)}" class="block bg-white rounded-xl shadow-sm p-6 mb-4 hover:shadow-md transition">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <h3 class="text-xl font-bold text-gray-800 mb-2 hover:text-pink-600 transition truncate">${article.title}</h3>
+                <p class="text-sm text-gray-500 mb-4 line-clamp-2">${getSummary(article)}</p>
+                <div class="flex items-center gap-4 text-xs text-gray-400 flex-wrap">
+                  <span>👤 ${displayName}${ownerBadge}</span>
+                  <span>📅 ${formatDate(article.created_at)}</span>
+                  <span>👁 ${article.views || 0} 浏览</span>
+                  <span class="text-pink-500 font-medium ml-auto hover:underline">查看更多 →</span>
+                </div>
+              </div>
+            </div>
+          </a>
+        `;
+      }).join('');
+
+      const loadMoreWrap = document.getElementById('loadMoreWrap');
+      if (displayedCount < allArticles.length) {
+        loadMoreWrap.classList.remove('hidden');
+      } else {
+        loadMoreWrap.classList.add('hidden');
+      }
+    }
+
+    async function loadArticles() {
+      try {
+        document.getElementById('articlesList').innerHTML = '<div class="w-full text-center py-16 text-gray-400">加载中...</div>';
+        allArticles = await api.getArticles({ status: 'published' });
+
+        // 获取站长真实名称
+        try {
+          const contributors = await api.getContributors();
+          const owner = contributors.find(c => c.is_owner);
+          if (owner) ownerName = owner.name;
+        } catch(e) {}
+
+        renderArticles(true);
+      } catch (err) {
+        console.error('加载文章列表失败:', err);
+        document.getElementById('articlesList').innerHTML = '<div class="w-full text-center py-16 text-red-400">加载失败，请稍后重试</div>';
+      }
+    }
+
+    document.getElementById('loadMoreBtn').addEventListener('click', () => {
+      renderArticles(false);
+    });
+
+    loadArticles();
+  </script>
+  <!-- 共享布局：导航栏 + 页脚 + 搜索弹窗 -->
+  <script src="layout.js"></script>
+</body>
+</html>

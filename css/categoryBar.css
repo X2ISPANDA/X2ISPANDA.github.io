@@ -1,0 +1,86 @@
+/* 首页分类条展示 */
+#category-bar {
+    padding: 0.4rem 1rem 0.4rem 0.5rem;
+    background: var(--heo-card-bg);
+    border-radius: 12px;
+    display: flex;
+    white-space: nowrap;
+    overflow: hidden;
+    margin-bottom: 1rem;
+    border: var(--style-border);
+}
+
+@media screen and (max-width: 768px) {
+    #category-bar {
+        border-radius: 0;
+    }
+}
+
+
+#category a.category-bar-item.select a {
+    display: none;
+}
+
+.category-in-bar {
+    display: flex;
+    white-space: nowrap;
+}
+
+.category-in-bar-tips {
+    margin-right: 1rem;
+}
+
+.category-bar-items {
+    white-space: nowrap;
+    overflow-x: scroll;
+    display: flex;
+}
+
+
+
+.category-bar-items::-webkit-scrollbar {
+    display: none;
+}
+
+.category-bar-item a {
+    padding: 0.1rem 0.5rem;
+    margin-right: 6px;
+    font-weight: bold;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    height: 30px;
+}
+
+.category-bar-item:hover a {
+    background: var(--heo-main);
+    color: var(--heo-white);
+}
+
+a {
+    background-color: transparent;
+    color: var(--heo-fontcolor);
+    text-decoration: none;
+    transition: all 0.2s ease 0s;
+    overflow-wrap: break-word;
+    -webkit-user-drag: none;
+}
+
+.category-bar-item.select a {
+    background: var(--heo-main);
+    color: var(--heo-white);
+    border-radius: 12px;
+}
+
+.category-bar-more {
+    margin-left: 1rem;
+    font-weight: bold;
+}
+
+.icon-youxiangshuangjiantou:before {
+    content: ">>";
+}
+
+.icon-zuoxiangxiangshuangjiantou:before {
+    content: "<<";
+}

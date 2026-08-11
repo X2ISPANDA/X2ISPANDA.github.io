@@ -1,0 +1,128 @@
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>友情链接 - LrcShare</title>
+  <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
+  <script src="supabase-client.js"></script>
+  <script>
+    const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <main class="max-w-5xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-2xl shadow-sm p-8 mb-6">
+      <div class="text-sm text-pink-500 mb-2">Friends</div>
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">友情链接</h1>
+      <p class="text-gray-500">UNDALYRIC UNDAMUSIC</p>
+    </div>
+
+    <div id="friendsContainer" class="mb-6">
+      <div class="text-center py-8 text-gray-400">加载中...</div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm p-8">
+      <h2 class="text-xl font-bold text-gray-800 mb-3">💌 我要申请友链</h2>
+      <p class="text-gray-600 mb-3">本站专注于滚动歌词分享与社区交流，欢迎主题相近的优质站点互换友链。</p>
+      <p class="text-gray-600">申请请发送邮件至：<a href="mailto:xmy329@gmail.com" class="text-pink-600 hover:underline font-medium">xmy329@gmail.com</a></p>
+    </div>
+  </main>
+
+  <script>
+    const api = window.LRCSHAPE_API;
+
+    async function initLinks() {
+      try {
+        const friends = await api.getFriends();
+        const container = document.getElementById('friendsContainer');
+
+        if (!friends || friends.length === 0) {
+          container.innerHTML = '<div class="text-center py-8 text-gray-400">暂无友链</div>';
+          return;
+        }
+
+        // 按分类分组（使用 API 返回的 category 信息）
+        const grouped = {};
+        const noCategory = [];
+        friends.forEach(item => {
+          if (item.category) {
+            const catId = item.category.id;
+            if (!grouped[catId]) grouped[catId] = { category: item.category, items: [] };
+            grouped[catId].items.push(item);
+          } else {
+            noCategory.push(item);
+          }
+        });
+
+        // 渲染分组
+        let html = Object.keys(grouped).map(catId => {
+          const { category, items } = grouped[catId];
+          const colorClass = getTailwindColor(category.color);
+          
+          return `
+            <div class="mb-8">
+              <div class="flex items-center gap-2 mb-4">
+                <span class="inline-block w-1 h-5 rounded" style="background-color: ${category.color}"></span>
+                <h2 class="text-lg font-bold text-gray-800">${category.icon || ''} ${category.name}</h2>
+                <span class="text-sm text-gray-400">(${items.length})</span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                ${items.map(item => renderFriendCard(item)).join('')}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // 未分类的友链
+        if (noCategory.length > 0) {
+          html += `
+            <div class="mb-8">
+              <div class="flex items-center gap-2 mb-4">
+                <span class="inline-block w-1 h-5 rounded bg-gray-400"></span>
+                <h2 class="text-lg font-bold text-gray-800">🔗 未分类</h2>
+                <span class="text-sm text-gray-400">(${noCategory.length})</span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                ${noCategory.map(item => renderFriendCard(item)).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        container.innerHTML = html;
+      } catch (err) {
+        console.error('加载友链数据失败:', err);
+        document.getElementById('friendsContainer').innerHTML = '<div class="text-center py-8 text-red-400">加载失败，请稍后重试</div>';
+      }
+    }
+
+    // 渲染友链卡片
+    function renderFriendCard(item) {
+      return `
+        <a href="${item.url}" target="_blank" rel="noopener" class="bg-white rounded-xl shadow-sm p-5 flex items-start gap-4 hover:-translate-y-0.5 hover:shadow-md transition block">
+          <img src="${item.avatar || DEFAULT_LOGO}" alt="${item.name}" class="w-14 h-14 rounded-full object-cover bg-gray-100 flex-shrink-0" />
+          <div class="min-w-0 flex-1">
+            <div class="font-bold text-gray-800 mb-1 truncate">${item.name}</div>
+            <div class="text-sm text-gray-500 line-clamp-2">${item.descr || ''}</div>
+          </div>
+        </a>
+      `;
+    }
+
+    // 将十六进制颜色转换为 Tailwind 安全的内联样式
+    function getTailwindColor(hex) {
+      return '';  // 使用内联 style 代替
+    }
+
+    initLinks();
+  </script>
+  <script src="layout.js"></script>
+</body>
+</html>

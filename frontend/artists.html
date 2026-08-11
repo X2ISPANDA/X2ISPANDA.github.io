@@ -1,0 +1,166 @@
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>艺术家库 - LrcShare</title>
+  <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
+  <script src="supabase-client.js"></script>
+  <script>
+    const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
+    function generateAvatar(name) {
+      return DEFAULT_LOGO;
+    }
+  </script>
+  <style>
+    .tab-active {
+      background: linear-gradient(135deg, #ec4899, #8b5cf6);
+      color: white;
+    }
+    .tab-inactive {
+      background: white;
+      color: #6b7280;
+    }
+    .tab-inactive:hover {
+      background: #f3f4f6;
+      color: #ec4899;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <main class="max-w-6xl mx-auto px-4 py-8">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-800">🎨 艺术家库</h1>
+      <p class="text-gray-500 mt-2">汇聚歌手、作词人、作曲人、编曲人的音乐作品集</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 mb-6 flex-wrap">
+      <button class="tab-btn tab-active px-5 py-2.5 rounded-full font-medium transition" data-type="singer">
+        🎤 歌手
+      </button>
+      <button class="tab-btn tab-inactive px-5 py-2.5 rounded-full font-medium transition" data-type="lyricist">
+        📝 作词人
+      </button>
+      <button class="tab-btn tab-inactive px-5 py-2.5 rounded-full font-medium transition" data-type="composer">
+        🎼 作曲人
+      </button>
+      <button class="tab-btn tab-inactive px-5 py-2.5 rounded-full font-medium transition" data-type="arranger">
+        🎹 编曲人
+      </button>
+      <button class="tab-btn tab-inactive px-5 py-2.5 rounded-full font-medium transition" data-type="">
+        🌟 全部
+      </button>
+    </div>
+
+    <!-- Artist Grid -->
+    <div id="artistsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+  </main>
+
+  <script>
+    const api = window.LRCSHAPE_API;
+
+    const TYPE_LABELS = {
+      singer: '歌手',
+      lyricist: '作词人',
+      composer: '作曲人',
+      arranger: '编曲人'
+    };
+
+    const TYPE_ICONS = {
+      singer: '🎤',
+      lyricist: '📝',
+      composer: '🎼',
+      arranger: '🎹'
+    };
+
+    let currentType = 'singer';
+
+    async function initArtists() {
+      let artists = await api.getArtists(true);
+      if (currentType) {
+        artists = artists.filter(a => (a.types || ['singer']).includes(currentType));
+      }
+      const grid = document.getElementById('artistsGrid');
+      
+      if (artists.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full text-center py-16">
+            <div class="text-6xl mb-4">🎵</div>
+            <p class="text-gray-400 text-lg">暂无${currentType ? TYPE_LABELS[currentType] : '艺术家'}</p>
+          </div>
+        `;
+        return;
+      }
+      
+      grid.innerHTML = artists.map(artist => {
+        const avatar = artist.avatar || DEFAULT_LOGO;
+        const types = artist.types || ['singer'];
+        const disambiguation = artist.disambiguation || '';
+        
+        // 生成所有类型的标签
+        const typeBadges = types.map(t => {
+          const label = TYPE_LABELS[t] || t;
+          const icon = TYPE_ICONS[t] || '🎨';
+          const colorMap = {
+            'singer': 'from-blue-500 to-indigo-500',
+            'lyricist': 'from-green-500 to-teal-500',
+            'composer': 'from-purple-500 to-pink-500',
+            'arranger': 'from-amber-500 to-orange-500'
+          };
+          const color = colorMap[t] || 'from-gray-500 to-gray-600';
+          return `<span class="bg-gradient-to-r ${color} text-white px-2 py-0.5 rounded-full text-xs whitespace-nowrap">${icon} ${label}</span>`;
+        }).join(' ');
+        
+        // 统计信息
+        const workCount = artist.song_count || 0;
+        let statsHtml = `<span>🎵 ${workCount} 首作品</span>`;
+        if (types.includes('singer') && artist.album_count > 0) {
+          statsHtml = `<span>📀 ${artist.album_count} 专辑</span><span>·</span><span>🎵 ${workCount} 首作品</span>`;
+        }
+        
+        return `
+          <a href="./artist.html?id=${artist.id}" class="bg-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition text-center group relative overflow-hidden">
+            <!-- Type badges -->
+            <div class="absolute top-2 right-2 flex gap-1 flex-wrap justify-end max-w-[60%]">
+              ${typeBadges}
+            </div>
+            <img src="${avatar}" alt="${artist.name}" class="w-20 h-20 rounded-full mx-auto mb-3 bg-gray-100 object-contain group-hover:scale-105 transition shadow-md" />
+            <div class="font-bold text-gray-800 text-lg truncate">
+              ${artist.name}
+              ${disambiguation ? `<span class="text-xs font-normal text-purple-500 ml-1">(${disambiguation})</span>` : ''}
+            </div>
+            ${artist.aliases && artist.aliases.length > 0 ? 
+              `<div class="text-xs text-gray-400 mt-0.5 truncate">aka ${artist.aliases.join(' / ')}</div>` : ''
+            }
+            <div class="text-sm text-gray-500 mt-2 flex items-center justify-center gap-1">
+              ${statsHtml}
+            </div>
+            ${artist.bio ? `<div class="text-xs text-gray-400 mt-2 line-clamp-2">${artist.bio}</div>` : ''}
+          </a>
+        `;
+      }).join('');
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          b.classList.remove('tab-active');
+          b.classList.add('tab-inactive');
+        });
+        btn.classList.remove('tab-inactive');
+        btn.classList.add('tab-active');
+        currentType = btn.dataset.type;
+        initArtists();
+      });
+    });
+
+    initArtists();
+  </script>
+  <script src="layout.js"></script>
+</body>
+</html>

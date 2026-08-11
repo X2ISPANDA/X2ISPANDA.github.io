@@ -1,0 +1,396 @@
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>赞助名单 - LrcShare</title>
+  <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
+  <script src="supabase-client.js"></script>
+  <script>
+    const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    /* 赞助列表卡片 */
+    .reward-list-all {
+      display: flex;
+      flex-wrap: wrap;
+      flex-direction: row;
+      margin-top: 1rem;
+      margin-left: -0.25rem;
+      margin-right: -0.25rem;
+    }
+    .reward-list-item {
+      padding: 1rem;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      width: calc((100% / 3) - 0.5rem);
+      margin: 0 0.25rem 0.5rem 0.25rem;
+      box-shadow: 0 8px 16px -4px rgba(0,0,0,0.05);
+      background: #fff;
+      transition: all 0.2s;
+    }
+    .reward-list-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px -4px rgba(0,0,0,0.1);
+    }
+    .reward-list-item .reward-list-item-name {
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+    .reward-list-item .reward-list-bottom-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .reward-list-item .reward-list-item-money {
+      padding: 4px 8px;
+      color: #fff;
+      font-size: 12px;
+      line-height: 1;
+      border-radius: 4px;
+      margin-right: 4px;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    .reward-list-item .reward-list-item-time {
+      font-size: 12px;
+      color: #9ca3af;
+      white-space: nowrap;
+    }
+    .reward-list-updateDate {
+      color: #6b7280;
+      font-size: 14px;
+      margin-top: 0.5rem;
+    }
+    .gradient-text {
+      background: linear-gradient(to right, red, orange, #409eff, green, blue, indigo, violet);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    /* 充电按钮 */
+    .about-reward {
+      position: absolute;
+      top: 1rem;
+      right: 2rem;
+    }
+    .reward #con {
+      position: relative;
+      width: 350px;
+      height: 85px;
+      border-radius: 4px;
+    }
+    .reward #TA-con {
+      position: absolute;
+      top: 50%;
+      left: 10%;
+      width: 157px;
+      height: 50px;
+      border-radius: 4px;
+      background-color: #f25d8e;
+      box-shadow: 0 4px 4px rgba(255,112,159,.3);
+      cursor: pointer;
+      transform: translateY(-50%);
+      transition: background-color 0.3s;
+    }
+    .reward #TA-con:hover { background-color: #ff6b9a; }
+    .reward #text-con {
+      position: relative;
+      margin: 0 auto;
+      width: 100px;
+      height: 100%;
+    }
+    .reward #linght {
+      position: absolute;
+      top: 36%;
+      left: 4px;
+      width: 0;
+      height: 0;
+      border-color: transparent;
+      border-style: solid;
+      border-width: 10px;
+      border-top: 10px solid #fff;
+      border-radius: 4px;
+      transform: rotate(-55deg);
+    }
+    .reward #linght::after {
+      position: absolute;
+      top: -13px;
+      left: -11px;
+      width: 0;
+      height: 0;
+      border-color: transparent;
+      border-style: solid;
+      border-width: 10px;
+      border-top: 10px solid #fff;
+      border-radius: 4px;
+      content: "";
+      transform: rotate(180deg);
+    }
+    .reward #TA {
+      float: right;
+      color: #fff;
+      font-size: 15px;
+      line-height: 50px;
+    }
+    .reward #tube-con {
+      position: absolute;
+      top: 15px;
+      right: -5px;
+      width: 157px;
+      height: 55px;
+    }
+    .reward svg { width: 100%; height: 100%; }
+    .reward #mask {
+      position: absolute;
+      top: 0;
+      left: 0;
+      overflow: hidden;
+      width: 0;
+      height: 100%;
+      transition: all .5s;
+    }
+    .reward #mask svg { width: 157px; height: 55px; }
+    .reward #TA-con:hover + #tube-con > #mask { width: 157px; }
+    .reward #TA-con:hover + #tube-con > #orange-mask {
+      animation: move1 .5s linear .2s infinite;
+    }
+    .reward #TA-con:hover + #tube-con > #orange-mask svg {
+      animation: movetwo .5s linear .2s infinite;
+    }
+    .reward #orange-mask {
+      position: absolute;
+      top: 0;
+      left: -15px;
+      overflow: hidden;
+      width: 18px;
+      height: 100%;
+    }
+    .reward #orange-mask svg {
+      position: absolute;
+      top: 0;
+      left: 15px;
+      width: 157px;
+      height: 55px;
+    }
+    @keyframes move1 {
+      0% { left: -15px; }
+      100% { left: 140px; }
+    }
+    @keyframes movetwo {
+      0% { left: 15px; }
+      100% { left: -140px; }
+    }
+
+    @media screen and (max-width: 768px) {
+      .reward-list-item { width: 100% !important; }
+      .about-reward { position: relative; top: auto; right: auto; margin-top: 1rem; }
+      .reward #con { width: 170px; }
+      .reward #tube-con { display: none; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <main class="max-w-5xl mx-auto px-4 py-8">
+    <!-- 标题+充电按钮 -->
+    <div class="bg-white rounded-2xl shadow-sm p-8 mb-6 relative reward">
+      <div class="text-sm text-pink-500 mb-2">致谢</div>
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">赞助名单</h1>
+      <p class="text-gray-500">没有你们就没有LrcShare的今天！</p>
+
+      <!-- 充电按钮 -->
+      <div class="about-reward">
+        <div id="con">
+          <div id="TA-con" onclick="showReward()">
+            <div id="text-con">
+              <div id="linght"></div>
+              <div id="TA">点击赞助</div>
+            </div>
+          </div>
+          <div id="tube-con">
+            <svg viewBox='0 0 1028 385' fill='none' xmlns='http://www.w3.org/2000/svg'>
+              <path d='M1 77H234.226L307.006 24H790' stroke='#e5e9ef' stroke-width='20' />
+              <path d='M0 140H233.035L329.72 71H1028' stroke='#e5e9ef' stroke-width='20' />
+              <path d='M1 255H234.226L307.006 307H790' stroke='#e5e9ef' stroke-width='20' />
+              <path d='M0 305H233.035L329.72 375H1028' stroke='#e5e9ef' stroke-width='20' />
+              <rect y='186' width='236' height='24' fill='#e5e9ef' />
+              <ellipse cx='790' cy='25.5' rx='25' ry='25.5' fill='#e5e9ef' />
+              <circle r='14' transform='matrix(1 0 0 -1 790 25)' fill='white' />
+              <ellipse cx='790' cy='307.5' rx='25' ry='25.5' fill='#e5e9ef' />
+              <circle r='14' transform='matrix(1 0 0 -1 790 308)' fill='white' />
+            </svg>
+            <div id="mask">
+              <svg viewBox='0 0 1028 385' fill='none' xmlns='http://www.w3.org/2000/svg'>
+                <path d='M1 77H234.226L307.006 24H790' stroke='#f25d8e' stroke-width='20' />
+                <path d='M0 140H233.035L329.72 71H1028' stroke='#f25d8e' stroke-width='20' />
+                <path d='M1 255H234.226L307.006 307H790' stroke='#f25d8e' stroke-width='20' />
+                <path d='M0 305H233.035L329.72 375H1028' stroke='#f25d8e' stroke-width='20' />
+                <rect y='186' width='236' height='24' fill='#f25d8e' />
+                <ellipse cx='790' cy='25.5' rx='25' ry='25.5' fill='#f25d8e' />
+                <circle r='14' transform='matrix(1 0 0 -1 790 25)' fill='white' />
+                <ellipse cx='790' cy='307.5' rx='25' ry='25.5' fill='#f25d8e' />
+                <circle r='14' transform='matrix(1 0 0 -1 790 308)' fill='white' />
+              </svg>
+            </div>
+            <div id="orange-mask">
+              <svg viewBox='0 0 1028 385' fill='none' xmlns='http://www.w3.org/2000/svg'>
+                <path d='M1 77H234.226L307.006 24H790' stroke='#ffd52b' stroke-width='20' />
+                <path d='M0 140H233.035L329.72 71H1028' stroke='#ffd52b' stroke-width='20' />
+                <path d='M1 255H234.226L307.006 307H790' stroke='#ffd52b' stroke-width='20' />
+                <path d='M0 305H233.035L329.72 375H1028' stroke='#ffd52b' stroke-width='20' />
+                <rect y='186' width='236' height='24' fill='#ffd52b' />
+                <ellipse cx='790' cy='25.5' rx='25' ry='25.5' fill='#ffd52b' />
+                <circle r='14' transform='matrix(1 0 0 -1 790 25)' fill='white' />
+                <ellipse cx='790' cy='307.5' rx='25' ry='25.5' fill='#ffd52b' />
+                <circle r='14' transform='matrix(1 0 0 -1 790 308)' fill='white' />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 统计区 -->
+    <div id="statsArea" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"></div>
+
+    <!-- 赞助名单 -->
+    <div class="bg-white rounded-2xl shadow-sm p-6">
+      <h2 class="text-lg font-bold text-gray-800 mb-2">💖 赞助者名单</h2>
+      <div id="rewardList" class="reward-list-all">
+        <div class="w-full text-center py-8 text-gray-400">加载中...</div>
+      </div>
+      <div id="updateDate" class="reward-list-updateDate"></div>
+    </div>
+  </main>
+
+  <!-- 赞助二维码弹窗 -->
+  <div id="rewardModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold text-gray-800">赞助 LrcShare</h3>
+        <button onclick="closeReward()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+      </div>
+      <div class="text-center text-gray-500 mb-4">请扫描下方二维码进行赞助</div>
+      <div class="flex justify-center gap-4">
+        <div class="text-center">
+          <div class="w-40 h-40 rounded-xl overflow-hidden mb-2 border border-gray-100">
+            <img src="/assets/img/Wechat.jpg" class="w-full h-full object-cover" />
+          </div>
+          <div class="text-sm text-gray-600">微信赞助</div>
+        </div>
+        <div class="text-center">
+          <div class="w-40 h-40 rounded-xl overflow-hidden mb-2 border border-gray-100">
+            <img src="/assets/img/Alipay.jpg" class="w-full h-full object-cover" />
+          </div>
+          <div class="text-sm text-gray-600">支付宝赞助</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const api = window.LRCSHAPE_API;
+
+    // 根据金额获取背景色
+    function getMoneyStyle(amount) {
+      if (amount >= 50) return 'background: #ef4444';
+      if (amount >= 30) return 'background: #f59e0b';
+      if (amount >= 10) return 'background: #10b981';
+      return 'background: #6b7280';
+    }
+
+    // 格式化日期
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      return new Date(dateStr).toISOString().slice(0, 10);
+    }
+
+    // 渲染赞助页面
+    async function initSupport() {
+      try {
+        const rewardList = await api.getSponsors();
+
+        if (!rewardList || rewardList.length === 0) {
+          document.getElementById('rewardList').innerHTML = '<div class="w-full text-center py-8 text-gray-400">暂无赞助记录</div>';
+          return;
+        }
+
+        // 统计
+        const totalCount = rewardList.length;
+        const totalAmount = rewardList.reduce((sum, r) => sum + parseFloat(r.amount) * 100, 0) / 100;
+        const latestDate = new Date(Math.max(...rewardList.map(r => new Date(r.datatime)))).toISOString().slice(0, 10);
+
+        // 渲染统计
+        document.getElementById('statsArea').innerHTML = `
+          <div class="bg-white rounded-2xl shadow-sm p-6 text-center">
+            <div class="text-3xl font-bold text-pink-500">${totalCount}</div>
+            <div class="text-gray-500 mt-1">赞助人数</div>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm p-6 text-center">
+            <div class="gradient-text">${totalAmount.toFixed(2)}</div>
+            <div class="text-gray-500 mt-1">赞助总额（元）</div>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm p-6 text-center">
+            <div class="text-3xl font-bold text-purple-500">${latestDate}</div>
+            <div class="text-gray-500 mt-1">最新赞助日期</div>
+          </div>
+        `;
+
+        // 渲染名单
+        const container = document.getElementById('rewardList');
+        container.innerHTML = rewardList.map(item => {
+          const advertise = item.url
+            ? `<span class="text-xs text-purple-500"><a href="${item.url}" target="_blank" class="hover:underline">${item.title}：${item.descr}</a></span>`
+            : (item.descr ? `<span class="text-xs text-purple-500">${item.descr}</span>` : '');
+
+          return `
+            <div class="reward-list-item">
+              <div class="reward-list-item-name">${item.name}</div>
+              ${advertise}
+              <div class="reward-list-bottom-group">
+                <span class="reward-list-item-money" style="${getMoneyStyle(parseFloat(item.amount))}">¥${item.amount}${item.suffix || ''}</span>
+                <span class="reward-list-item-time">${formatDate(item.datatime)}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // 渲染统计底部
+        document.getElementById('updateDate').innerHTML = `
+          共有 <b>${totalCount}</b> 位小伙伴投喂
+          <span class="gradient-text">${totalAmount.toFixed(2)}</span> 元
+          最新投喂时间：${latestDate}
+        `;
+      } catch (err) {
+        console.error('加载赞助数据失败:', err);
+        document.getElementById('rewardList').innerHTML = '<div class="w-full text-center py-8 text-red-400">加载失败，请稍后重试</div>';
+      }
+    }
+
+    // 赞助弹窗
+    function showReward() {
+      document.getElementById('rewardModal').classList.remove('hidden');
+    }
+    function closeReward() {
+      document.getElementById('rewardModal').classList.add('hidden');
+    }
+    document.getElementById('rewardModal').addEventListener('click', (e) => {
+      if (e.target.id === 'rewardModal') closeReward();
+    });
+
+    // 初始化
+    initSupport();
+  </script>
+  <script src="layout.js"></script>
+</body>
+</html>

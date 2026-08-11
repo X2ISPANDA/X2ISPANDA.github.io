@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>贡献者详情 - LrcShare</title>
+  <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="/config.js"></script>
+  <script src="supabase-client.js"></script>
+  <script>
+    const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    /* Tag Chip 颜色 */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.6;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+    .chip-pink { background-color: #fce7f3; color: #be185d; }
+    .chip-purple { background-color: #f3e8ff; color: #7c3aed; }
+    .chip-blue { background-color: #dbeafe; color: #1d4ed8; }
+    .chip-green { background-color: #dcfce7; color: #15803d; }
+    .chip-yellow { background-color: #fef3c7; color: #a16207; }
+    .chip-orange { background-color: #ffedd5; color: #c2410c; }
+    .chip-cyan { background-color: #cffafe; color: #0e7490; }
+    .chip-red { background-color: #fee2e2; color: #b91c1c; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <main class="max-w-4xl mx-auto px-4 py-8">
+    <!-- 返回链接 -->
+    <div class="mb-4">
+      <a href="./contributors.html" class="inline-flex items-center gap-2 text-gray-500 hover:text-pink-600 transition">
+        <i class="fa-solid fa-arrow-left w-5 h-5"></i>
+        返回贡献者名单
+      </a>
+    </div>
+
+    <!-- Hero 区 -->
+    <div id="heroArea" class="bg-gradient-to-br from-pink-50 via-white to-purple-50 rounded-2xl shadow-sm p-8 mb-6 border border-pink-100">
+      <div class="text-center py-8 text-gray-400">加载中...</div>
+    </div>
+
+    <!-- 统计数据 -->
+    <div id="statsArea" class="grid grid-cols-2 gap-4 mb-6"></div>
+
+    <!-- 作品列表 -->
+    <div class="bg-white rounded-2xl shadow-sm p-6">
+      <h2 class="text-xl font-bold text-gray-800 mb-4">📚 作品列表</h2>
+      <div id="worksList">
+        <div class="text-center py-8 text-gray-400">加载中...</div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const api = window.LRCSHAPE_API;
+
+    function getQueryParam(name) {
+      const url = new URL(window.location.href);
+      return url.searchParams.get(name);
+    }
+
+    function getAvatar(avatar) {
+      return avatar && avatar.trim() ? avatar : DEFAULT_LOGO;
+    }
+
+    function getChipColor(tag) {
+      const t = tag || '';
+      if (t.includes('LOGO') || t.includes('设计')) return 'chip-pink';
+      if (t.includes('歌词') || t.includes('贡献')) return 'chip-purple';
+      if (t.includes('文案')) return 'chip-blue';
+      if (t.includes('代码') || t.includes('开发')) return 'chip-green';
+      if (t.includes('翻译')) return 'chip-yellow';
+      if (t.includes('校对')) return 'chip-orange';
+      if (t.includes('美工') || t.includes('美术')) return 'chip-cyan';
+      return 'chip-red';
+    }
+
+    function renderTags(tags) {
+      if (!tags || tags.length === 0) return '';
+      const tagArr = Array.isArray(tags) ? tags : String(tags).split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      return tagArr.map(t => `<span class="chip ${getChipColor(t)}">${t}</span>`).join('');
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      try { return new Date(dateStr).toISOString().slice(0, 10); } catch(e) { return ''; }
+    }
+
+    function renderHero(c) {
+      const avatar = getAvatar(c.avatar);
+      const name = c.name || '匿名贡献者';
+      const bio = (c.public_bio !== false && c.bio) ? c.bio : '';
+      
+
+      const links = [];
+      if (c.public_homepage !== false && c.homepage) {
+        const homepageLabel = c.homepage_label || '个人主页';
+        links.push(`
+          <a href="${c.homepage}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 text-gray-700 hover:text-purple-700 transition">
+            <i class="fa-solid fa-link w-5 h-5"></i>
+            ${homepageLabel}
+          </a>
+        `);
+      }
+      if (c.public_contact && c.contact_value) {
+        const cv = typeof c.contact_value === 'string' ? JSON.parse(c.contact_value || '{}') : c.contact_value;
+        const icons = {
+          'QQ': '<i class="fa-brands fa-qq w-5 h-5 inline-flex items-center justify-center"></i>',
+          '微信': '<i class="fa-brands fa-weixin w-5 h-5 inline-flex items-center justify-center"></i>',
+          '邮箱': '<i class="fa-solid fa-envelope w-5 h-5 inline-flex items-center justify-center"></i>',
+          'Email': '<i class="fa-solid fa-envelope w-5 h-5 inline-flex items-center justify-center"></i>',
+          'B站': '<i class="fa-solid fa-tower-broadcast w-5 h-5 inline-flex items-center justify-center"></i>',
+          'Bilibili': '<i class="fa-solid fa-tower-broadcast w-5 h-5 inline-flex items-center justify-center"></i>',
+          'GitHub': '<i class="fa-brands fa-github w-5 h-5 inline-flex items-center justify-center"></i>',
+          '博客': '<i class="fa-solid fa-blog w-5 h-5 inline-flex items-center justify-center"></i>',
+          '抖音': '<i class="fa-brands fa-tiktok w-5 h-5 inline-flex items-center justify-center"></i>',
+          '微博': '<i class="fa-brands fa-weibo w-5 h-5 inline-flex items-center justify-center"></i>',
+          'Twitter': '<i class="fa-brands fa-twitter w-5 h-5 inline-flex items-center justify-center"></i>',
+          '小红书': '<i class="fa-solid fa-book w-5 h-5 inline-flex items-center justify-center"></i>',
+          '电话': '<i class="fa-solid fa-phone w-5 h-5 inline-flex items-center justify-center"></i>',
+          '手机': '<i class="fa-solid fa-mobile-screen w-5 h-5 inline-flex items-center justify-center"></i>'
+        };
+        
+        Object.entries(cv || {}).filter(([k,v]) => v).forEach(([k,v]) => {
+          const icon = icons[k] || '<i class="fa-solid fa-link w-5 h-5 inline-flex items-center justify-center"></i>';
+          links.push(`
+            <div class="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 text-gray-600">
+              ${icon}
+              <span>${k}：${v}</span>
+            </div>
+          `);
+        });
+      }
+
+      return `
+        <div class="flex flex-col md:flex-row items-center md:items-start gap-8">
+          <div class="flex-shrink-0">
+            <img src="${avatar}" alt="${name}" class="w-28 h-28 rounded-full object-cover ring-4 ring-pink-200 shadow-md" onerror="this.src='${DEFAULT_LOGO}'" />
+          </div>
+          <div class="flex-1 text-center md:text-left min-w-0">
+            <div class="flex items-center justify-center md:justify-start flex-wrap">
+              <h1 class="text-3xl font-bold text-gray-800">${name}</h1>
+            </div>
+            ${bio ? `<p class="text-gray-500 mt-3 leading-relaxed">${bio}</p>` : ''}
+            ${links.length > 0 ? `<div class="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-3">${links.join('')}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderStats(c) {
+      const songCount = typeof c.song_count === 'number' ? c.song_count : 0;
+      const tagsHtml = renderTags(c.tags);
+      return `
+        <div class="bg-white rounded-2xl shadow-sm p-6 text-center">
+          <div class="text-3xl font-bold text-pink-500">${songCount}</div>
+          <div class="text-gray-500 mt-1">作品数</div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm p-6">
+          <div class="text-sm text-gray-500 mb-2 text-center">标签</div>
+          <div class="flex flex-wrap justify-center">
+            ${tagsHtml || '<span class="text-gray-400 text-sm">暂无标签</span>'}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderWorks(works) {
+      if (!works || works.length === 0) {
+        return `
+          <div class="text-center py-12 text-gray-400">
+            <i class="fa-solid fa-file-lines w-16 h-16 mx-auto mb-3 text-gray-300"></i>
+            <p>暂无公开作品记录（或为 LOGO、文案等非歌词贡献）</p>
+          </div>
+        `;
+      }
+      return works.map(w => {
+        const date = formatDate(w.created_at);
+        const title = w.title || '（未知标题）';
+        const artist = w.artist || '';
+        const songLink = w.id ? `./song.html?id=${w.id}` : '';
+        return `
+          <div class="flex items-center justify-between gap-4 py-4 px-4 hover:bg-gray-50 rounded-xl transition border-b border-gray-100 last:border-b-0">
+            <div class="flex-1 min-w-0">
+              <a href="${songLink}" class="font-semibold text-gray-800 hover:text-pink-600 hover:underline truncate block">${title}</a>
+              ${artist ? `<div class="text-sm text-gray-500 mt-1 truncate">🎤 ${artist}</div>` : ''}
+            </div>
+            ${date ? `<div class="text-sm text-gray-400 flex-shrink-0 whitespace-nowrap">${date}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function initContributor() {
+      const id = getQueryParam('id');
+      const heroArea = document.getElementById('heroArea');
+      const statsArea = document.getElementById('statsArea');
+      const worksList = document.getElementById('worksList');
+
+      if (!id) {
+        heroArea.innerHTML = '<div class="text-center py-8 text-red-400">缺少贡献者 ID 参数</div>';
+        statsArea.innerHTML = '';
+        worksList.innerHTML = '';
+        return;
+      }
+
+      try {
+        const contributor = await api.getContributor(id);
+        if (!contributor) {
+          heroArea.innerHTML = '<div class="text-center py-8 text-red-400">贡献者不存在</div>';
+          statsArea.innerHTML = '';
+          worksList.innerHTML = '';
+          return;
+        }
+
+        heroArea.innerHTML = renderHero(contributor);
+        statsArea.innerHTML = renderStats(contributor);
+
+        const works = await api.getContributorWorks(contributor.id);
+        worksList.innerHTML = renderWorks(works);
+      } catch (err) {
+        console.error('加载贡献者详情失败:', err);
+        heroArea.innerHTML = '<div class="text-center py-8 text-red-400">加载失败，请稍后重试</div>';
+        statsArea.innerHTML = '';
+        worksList.innerHTML = '';
+      }
+    }
+
+    initContributor();
+  </script>
+  <!-- 共享布局：导航栏 + 页脚 + 搜索弹窗 -->
+  <script src="layout.js"></script>
+</body>
+</html>

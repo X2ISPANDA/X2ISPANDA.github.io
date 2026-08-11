@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>专辑详情 - LrcShare</title>
+  <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
+  <script src="supabase-client.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    /* ==== 专辑页表格样式 ==== */
+    .album-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .album-table th,
+    .album-table td {
+      padding: 12px 16px;
+      box-sizing: border-box;
+      vertical-align: middle;
+    }
+    .album-table thead th {
+      font-size: 12px;
+      color: #9ca3af;
+      font-weight: normal;
+      text-align: left;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .album-table tbody tr {
+      border-bottom: 1px solid #f9fafb;
+      transition: background .15s;
+      cursor: pointer;
+    }
+    .album-table tbody tr:hover { background: #f9fafb; }
+    .album-table tbody tr:last-child { border-bottom: none; }
+    .col-num    { width: 56px;  text-align: center; font-variant-numeric: tabular-nums; }
+    .col-song   { width: auto;  min-width: 0; }
+    .col-singer { width: 180px; text-align: right; }
+    .col-dur    { width: 96px;  text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .album-table th.col-num   { text-align: center; }
+    .album-table th.col-singer{ text-align: right; }
+    .album-table th.col-dur   { text-align: right; }
+    .album-table .ellipsis {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <main class="max-w-4xl mx-auto px-4 py-8">
+    <div id="albumPage"></div>
+  </main>
+
+  <script>
+    const api = window.LRCSHAPE_API;
+
+    // 时长格式化：2:32 → 02:32，去掉毫秒部分
+    function formatDuration(dur) {
+      if (!dur || dur === 'NULL' || dur === 'null') return '--:--';
+      let d = dur.split('.')[0];
+      const parts = d.split(':');
+      if (parts.length === 2) {
+        const m = parts[0].padStart(2, '0');
+        const s = parts[1].padStart(2, '0');
+        return `${m}:${s}`;
+      }
+      return d;
+    }
+
+    async function initAlbum() {
+      const params = new URLSearchParams(window.location.search);
+      const albumId = params.get('id');
+      if (!albumId) { window.location.href = './index.html'; return; }
+
+      const data = await api.getAlbum(albumId);
+      if (!data) { alert('专辑不存在'); window.location.href = './index.html'; return; }
+      const songs = await api.getAlbumSongs(albumId);
+      // 按曲目号排序，曲目号相同时按标题
+      const sortedSongs = [...songs].sort((a, b) => {
+        const ta = a.track || 0;
+        const tb = b.track || 0;
+        if (ta !== tb) return ta - tb;
+        return (a.title || '').localeCompare(b.title || '');
+      });
+      data.songs = sortedSongs;
+
+      // 获取所有艺术家用于解析ID并生成链接
+      const allArtists = await api.getArtists();
+      const artistMap = {};
+      allArtists.forEach(a => { artistMap[a.id] = a; });
+
+      const singerHtml = (song) => {
+        const ids = song.artist_ids || [];
+        if (ids.length === 0) return `<span class="text-gray-500">${song.artist_name || ''}</span>`;
+        return ids.map(id => {
+          const a = artistMap[id];
+          if (!a) return `<span class="text-gray-500">未知</span>`;
+          return `<a href="./artist.html?id=${a.id}" class="text-gray-500 hover:text-pink-600 hover:underline" data-nolink>${a.name}</a>`;
+        }).join(' / ');
+      };
+
+      // Determine display name and link
+      let artistDisplayName = data.artist_name || '未知';
+      let artistLink = '';
+      const albumArtistIds = data.artist_ids || [];
+      if (albumArtistIds.length > 0) {
+        const links = albumArtistIds.map(id => {
+          const a = artistMap[id];
+          if (!a) return '';
+          return `<a href="./artist.html?id=${a.id}" class="text-lg opacity-90 hover:underline" data-nolink>${a.name}</a>`;
+        }).filter(Boolean);
+        if (links.length > 0) {
+          artistLink = links.join(' / ');
+        } else {
+          artistLink = `<span class="text-lg opacity-90">${artistDisplayName}</span>`;
+        }
+      } else if (data.artist_name) {
+        artistLink = `<span class="text-lg opacity-90">${artistDisplayName}</span>`;
+      } else {
+        artistLink = `<span class="text-lg opacity-90">未知</span>`;
+      }
+
+      const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
+      const cover = data.cover || DEFAULT_LOGO;
+
+      document.getElementById('albumPage').innerHTML = `
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-8 text-white">
+            <div class="flex items-center gap-6">
+              <div class="w-32 h-32 bg-white/20 rounded-xl flex items-center justify-center text-6xl shadow-lg overflow-hidden">
+                ${cover ? `<img src="${cover}" class="w-full h-full rounded-xl ${cover === DEFAULT_LOGO ? 'object-contain p-2' : 'object-cover'}" />` : '💿'}
+              </div>
+              <div>
+                <h1 class="text-3xl font-bold mb-2">${data.name}</h1>
+                ${artistLink}
+                <div class="text-sm opacity-75 mt-2">${data.year || ''}</div>
+              </div>
+            </div>
+          </div>
+          ${data.songs.length > 0 ? `
+          <table class="album-table">
+            <thead>
+              <tr>
+                <th class="col-num">#</th>
+                <th class="col-song">歌曲</th>
+                <th class="col-singer">歌手</th>
+                <th class="col-dur">时长</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.songs.map(song => {
+                const track = song.track && song.track > 0 ? String(song.track) : '—';
+                return `
+                <tr data-song-id="${song.id}">
+                  <td class="col-num text-xs text-gray-400">${track}</td>
+                  <td class="col-song text-gray-800 font-medium">
+                    <span class="ellipsis">${song.title}</span>
+                  </td>
+                  <td class="col-singer text-sm">${singerHtml(song)}</td>
+                  <td class="col-dur text-gray-400 text-sm">${formatDuration(song.duration)}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+          ` : '<div class="p-8 text-center text-gray-400">暂无歌曲</div>'}
+        </div>
+      `;
+
+      // 行点击跳转 + 歌手链接单独跳转
+      if (data.songs.length > 0) {
+        document.querySelectorAll('#albumPage tbody tr').forEach(tr => {
+          const songId = tr.getAttribute('data-song-id');
+          tr.addEventListener('click', (e) => {
+            // 如果点击的是歌手链接，不触发行跳转
+            if (e.target.closest('[data-nolink]')) return;
+            window.location.href = `./song.html?id=${songId}`;
+          });
+        });
+      }
+    }
+    initAlbum();
+  </script>
+  <script src="layout.js"></script>
+</body>
+</html>

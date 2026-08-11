@@ -1,0 +1,77 @@
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>专辑库 - LrcShare</title>
+  <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
+  <script src="supabase-client.js"></script>
+  <script>
+    const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <main class="max-w-6xl mx-auto px-4 py-8">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-800">💿 专辑库</h1>
+      <p class="text-gray-500 mt-2">浏览所有收录的音乐专辑</p>
+    </div>
+
+    <!-- Album Grid -->
+    <div id="albumsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+  </main>
+
+  <script>
+    const api = window.LRCSHAPE_API;
+
+    async function initAlbums() {
+      const grid = document.getElementById('albumsGrid');
+      try {
+        const albums = await api.getAlbums(true);
+        console.log('Albums loaded:', albums);
+
+        if (!albums || albums.length === 0) {
+          grid.innerHTML = `
+            <div class="col-span-full text-center py-16">
+              <div class="text-6xl mb-4">💿</div>
+              <p class="text-gray-400 text-lg">暂无专辑</p>
+            </div>
+          `;
+          return;
+        }
+
+        grid.innerHTML = albums.map(album => {
+          const cover = album.cover || DEFAULT_LOGO;
+          const songCount = album.song_count || 0;
+
+          return `
+            <a href="./album.html?id=${album.id}" class="bg-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition text-center group">
+              <div class="relative mx-auto mb-3 w-24 h-24">
+                <img src="${cover}" alt="${album.name}" class="w-24 h-24 rounded-xl mx-auto bg-gray-100 object-contain group-hover:scale-105 transition shadow-md" />
+              </div>
+              <div class="font-bold text-gray-800 truncate text-lg">${album.name}</div>
+              ${album.artist_name ? `<div class="text-sm text-gray-500 mt-0.5 truncate">${album.artist_name}</div>` : ''}
+              <div class="flex items-center justify-center gap-3 mt-2 text-sm text-gray-500">
+                ${album.year ? `<span>📅 ${album.year}</span>` : ''}
+                <span>🎵 ${songCount} 首</span>
+              </div>
+            </a>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Failed to load albums:', err);
+        grid.innerHTML = '<div class="col-span-full text-center py-16 text-red-400">加载专辑失败，请刷新重试</div>';
+      }
+    }
+
+    initAlbums();
+  </script>
+  <script src="layout.js"></script>
+</body>
+</html>

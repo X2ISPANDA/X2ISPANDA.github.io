@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LrcShare - 全球最小滚动歌词分享网站</title>
+  <script src="../vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+  <script>
+    const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
+    function generateAvatar(name) {
+      const colors = ['#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#6366f1'];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      const color = colors[Math.abs(hash) % colors.length];
+      return DEFAULT_LOGO;
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .lyric-line { transition: color 0.2s; }
+    .lyric-line:hover { color: #ec4899; }
+    .hero-bg {
+      position: relative;
+    }
+    .hero-bg-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .hero-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 0;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
+    /* 好莱坞风格 - 简单厚重阴影 */
+    .art-title-char {
+      display: inline-block;
+      font-weight: 900;
+      color: #fff;
+      -webkit-text-fill-color: #fff;
+      text-shadow: 
+        1px 1px 0 #1a0a2e,
+        2px 2px 0 #1a0a2e,
+        3px 3px 0 #1a0a2e,
+        4px 4px 0 #1a0a2e,
+        5px 5px 0 #1a0a2e,
+        6px 6px 0 #1a0a2e,
+        7px 7px 10px rgba(0,0,0,0.6),
+        0 0 20px rgba(139, 92, 246, 0.5);
+      transform-style: preserve-3d;
+      opacity: 0;
+      transform: scale(0.8);
+      will-change: transform, filter, opacity;
+    }
+    /* 入场完成 - 显示带阴影的文字 */
+    .art-title-char.entered {
+      opacity: 1;
+      transform: scale(1);
+    }
+    /* 导航栏艺术字 - 3D悬浮+霓虹脉冲 */
+    .nav-art-title {
+      display: inline-block;
+      background: linear-gradient(135deg, #ec4899 0%, #a855f7 33%, #3b82f6 66%, #06b6d4 100%);
+      background-size: 300% 300%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+      letter-spacing: 1px;
+      transform-style: preserve-3d;
+      animation: 
+        gradient-shift 3s ease infinite,
+        nav-float 2.5s ease-in-out infinite,
+        nav-glow 2s ease-in-out infinite;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .nav-art-title:hover {
+      animation: 
+        gradient-shift 1s ease infinite,
+        nav-3d-shake 0.4s ease-in-out infinite;
+      transform: scale(1.15) rotateY(20deg) rotateX(10deg);
+      filter: drop-shadow(0 0 12px rgba(236, 72, 153, 0.9)) drop-shadow(0 0 24px rgba(168, 85, 247, 0.6));
+    }
+    @keyframes nav-float {
+      0%, 100% { transform: translateY(0) rotateZ(0deg); }
+      33% { transform: translateY(-4px) rotateZ(-2deg); }
+      66% { transform: translateY(-2px) rotateZ(1deg); }
+    }
+    @keyframes nav-glow {
+      0%, 100% { filter: drop-shadow(0 0 4px rgba(236, 72, 153, 0.4)); }
+      50% { filter: drop-shadow(0 0 10px rgba(236, 72, 153, 0.7)) drop-shadow(0 0 16px rgba(168, 85, 247, 0.4)); }
+    }
+    @keyframes nav-3d-shake {
+      0%, 100% { transform: scale(1.15) rotateY(20deg) rotateX(10deg) rotateZ(0deg); }
+      25% { transform: scale(1.18) rotateY(-15deg) rotateX(-5deg) rotateZ(-5deg); }
+      75% { transform: scale(1.18) rotateY(25deg) rotateX(15deg) rotateZ(5deg); }
+    }
+    @keyframes searchIn { from{opacity:0;transform:scale(.95) translateY(-10px)} to{opacity:1;transform:scale(1) translateY(0)} }
+    .animate-search-in { animation: searchIn 0.2s ease-out; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- Hero Section -->
+  <section class="hero-bg text-white py-20">
+    <img src="https://i0.hdslb.com/bfs/article/a009cfa6551237d38e6f64ce46fd739037977624.jpg" alt="背景" class="hero-bg-img" referrerpolicy="no-referrer" />
+    <div class="hero-content max-w-3xl mx-auto px-4 text-center">
+      <img src="https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png" alt="LrcShare Logo" class="w-24 h-24 mx-auto mb-4" />
+      <h1 class="text-4xl md:text-5xl font-bold mb-4 hero-title-3d">
+        <span class="art-title-char" data-char="L" style="--fly-x: -60px; --fly-y: -80px; --fly-rotate: -180deg;">L</span><span class="art-title-char" data-char="r" style="--fly-x: 50px; --fly-y: -70px; --fly-rotate: 180deg;">r</span><span class="art-title-char" data-char="c" style="--fly-x: -45px; --fly-y: 50px; --fly-rotate: -200deg;">c</span><span class="art-title-char" data-char="S" style="--fly-x: 60px; --fly-y: -50px; --fly-rotate: 220deg;">S</span><span class="art-title-char" data-char="h" style="--fly-x: -35px; --fly-y: 60px; --fly-rotate: -240deg;">h</span><span class="art-title-char" data-char="a" style="--fly-x: 45px; --fly-y: -70px; --fly-rotate: 160deg;">a</span><span class="art-title-char" data-char="r" style="--fly-x: -55px; --fly-y: 45px; --fly-rotate: -300deg;">r</span><span class="art-title-char" data-char="e" style="--fly-x: 65px; --fly-y: -80px; --fly-rotate: 200deg;">e</span>
+      </h1>
+      <p class="text-lg opacity-90 mb-8">全球最小滚动歌词分享网站</p>
+      
+      <!-- Search Box -->
+      <div class="relative max-w-xl mx-auto">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="搜索歌曲、歌手或歌词..."
+          class="w-full px-6 py-4 pl-14 rounded-full text-gray-800 text-lg shadow-lg focus:outline-none focus:ring-4 focus:ring-white/30"
+          autocomplete="off"
+        />
+        <svg class="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        
+        <!-- Search Dropdown -->
+        <div id="searchDropdown" class="hidden absolute w-full mt-2 bg-white rounded-2xl shadow-2xl overflow-hidden z-50">
+          <div class="p-4 border-b bg-gray-50">
+            <div class="flex gap-4 text-sm">
+              <button class="search-tab font-semibold text-pink-600 border-b-2 border-pink-600 pb-1" data-type="all">全部</button>
+              <button class="search-tab text-gray-500 pb-1" data-type="songs">单曲</button>
+              <button class="search-tab text-gray-500 pb-1" data-type="artists">歌手</button>
+              <button class="search-tab text-gray-500 pb-1" data-type="albums">专辑</button>
+            </div>
+          </div>
+          <div id="searchResults" class="max-h-96 overflow-y-auto"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Content -->
+  <main class="max-w-6xl mx-auto px-4 py-12">
+    <!-- Hot Artists -->
+    <section class="mb-12">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">艺术家</h2>
+        <a href="./artists.html" class="text-pink-600 hover:underline">查看全部 →</a>
+      </div>
+      <div id="artistsGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+    </section>
+
+    <!-- 左右两栏 -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- 左栏：最新歌词 (占 2 列) -->
+      <div class="lg:col-span-2">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-2xl font-bold text-gray-800">🆕 最新歌词</h2>
+          <a href="./search.html" class="text-pink-600 hover:underline">查看全部 →</a>
+        </div>
+        <div id="songsList" class="bg-white rounded-2xl shadow-sm divide-y"></div>
+      </div>
+
+      <!-- 右栏：上下两栏 (占 1 列) -->
+      <div class="space-y-8">
+        <!-- 右栏上：站长逼逼 (文章) -->
+        <div class="bg-white rounded-2xl shadow-sm p-6">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-bold text-gray-800">📝 站长逼逼</h2>
+            <a href="./posts.html" class="text-pink-600 hover:underline text-sm">查看全部 →</a>
+          </div>
+          <div id="articlesList" class="space-y-4">
+            <div class="text-sm text-gray-400 text-center py-6">加载中...</div>
+          </div>
+        </div>
+
+        <!-- 右栏下：优秀贡献者 -->
+        <div class="bg-white rounded-2xl shadow-sm p-6">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-bold text-gray-800">🏆 优秀贡献者</h2>
+            <a href="./contributors.html" class="text-pink-600 hover:underline text-sm">查看全部 →</a>
+          </div>
+          <div id="featuredContributors" class="grid grid-cols-3 gap-3">
+            <div class="col-span-3 text-sm text-gray-400 text-center py-6">加载中...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../config.js"></script>
+  <script src="supabase-client.js"></script>
+  <script src="layout.js"></script>
+  <script>
+    // 入场动画控制 - 简单旋转飞入
+    function initHeroAnimation() {
+      const chars = document.querySelectorAll('.art-title-char');
+      if (chars.length === 0) return;
+      
+      chars.forEach((char, index) => {
+        const delay = index * 80; // 每个字符延迟 80ms
+        const flyInDuration = 1000; // 飞入动画时长 1s
+        
+        // 读取 CSS 变量
+        const style = getComputedStyle(char);
+        const flyX = style.getPropertyValue('--fly-x').trim() || '-80px';
+        const flyY = style.getPropertyValue('--fly-y').trim() || '-80px';
+        const flyRotate = style.getPropertyValue('--fly-rotate').trim() || '-360deg';
+        
+        // 创建简单旋转飞入动画
+        const animationName = `fly-${index}`;
+        const keyframes = `@keyframes ${animationName} {
+          0% {
+            opacity: 0;
+            transform: translate3d(${flyX}, ${flyY}, 0) rotate(${flyRotate}) scale(0.5);
+            filter: blur(6px);
+          }
+          100% {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+            filter: blur(0);
+          }
+        }`;
+        
+        // 注入动画
+        const styleSheet = document.createElement('style');
+        styleSheet.textContent = keyframes;
+        document.head.appendChild(styleSheet);
+        
+        // 执行飞入动画
+        setTimeout(() => {
+          char.style.animation = `${animationName} ${flyInDuration}ms cubic-bezier(0.22, 1, 0.36, 1) forwards`;
+          
+          // 飞入完成后保持稳定
+          setTimeout(() => {
+            char.classList.add('entered');
+            char.style.animation = '';
+          }, flyInDuration);
+        }, delay);
+      });
+    }
+    
+    // 页面加载完成后启动动画
+    window.addEventListener('load', () => {
+      setTimeout(initHeroAnimation, 300);
+    });
+
+    const api = window.LRCSHAPE_API;
+    let searchTimer = null;
+    let currentSearchType = 'all';
+
+    function formatDuration(d) {
+      if (!d || d === 'NULL' || d === 'null') return '--:--';
+      let s = String(d).trim().split('.')[0];
+      const parts = s.split(':');
+      if (parts.length === 2) {
+        return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+      }
+      return s;
+    }
+
+    // 搜索建议功能
+    function initSearch() {
+      const input = document.getElementById('searchInput');
+      const dropdown = document.getElementById('searchDropdown');
+      const results = document.getElementById('searchResults');
+      const tabs = document.querySelectorAll('.search-tab');
+
+      // Tab 切换
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => {
+            t.classList.remove('font-semibold', 'text-pink-600', 'border-b-2', 'border-pink-600');
+            t.classList.add('text-gray-500');
+          });
+          tab.classList.remove('text-gray-500');
+          tab.classList.add('font-semibold', 'text-pink-600', 'border-b-2', 'border-pink-600');
+          currentSearchType = tab.dataset.type;
+          // 如果有输入内容，重新搜索
+          if (input.value.trim()) {
+            doSearch(input.value.trim());
+          }
+        });
+      });
+
+      // 输入事件（防抖）
+      input.addEventListener('input', (e) => {
+        clearTimeout(searchTimer);
+        const value = e.target.value.trim();
+        if (!value) {
+          dropdown.classList.add('hidden');
+          return;
+        }
+        searchTimer = setTimeout(() => {
+          doSearch(value);
+        }, 300);
+      });
+
+      // 聚焦时显示（如果有内容）
+      input.addEventListener('focus', () => {
+        if (input.value.trim()) {
+          doSearch(input.value.trim());
+        }
+      });
+
+      // 点击外部关闭下拉
+      document.addEventListener('click', (e) => {
+        if (!dropdown.contains(e.target) && e.target !== input) {
+          dropdown.classList.add('hidden');
+        }
+      });
+
+      // 回车打开搜索弹窗
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && input.value.trim()) {
+          e.preventDefault();
+          if (window.openSearchOverlayWithKeyword) {
+            window.openSearchOverlayWithKeyword(input.value.trim());
+          }
+        }
+      });
+    }
+
+    async function doSearch(keyword) {
+      const dropdown = document.getElementById('searchDropdown');
+      const results = document.getElementById('searchResults');
+      dropdown.classList.remove('hidden');
+      results.innerHTML = '<div class="p-4 text-center text-gray-400">搜索中...</div>';
+
+      try {
+        const data = await api.search(keyword);
+        renderSearchResults(data, keyword);
+      } catch (err) {
+        results.innerHTML = '<div class="p-4 text-center text-gray-400">搜索失败</div>';
+      }
+    }
+
+    function renderSearchResults(data, keyword) {
+      const results = document.getElementById('searchResults');
+      let html = '';
+
+      const filterByType = (items, type) => {
+        if (type === 'all') return items;
+        return items;
+      };
+
+      // 歌手结果
+      const artists = data.artists || [];
+      if (artists.length > 0 && (currentSearchType === 'all' || currentSearchType === 'artists')) {
+        html += `<div class="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">🎤 歌手</div>`;
+        html += artists.slice(0, 3).map(artist => {
+          const avatar = artist.avatar || generateAvatar(artist.name);
+          const disambiguation = artist.disambiguation ? `<span class="text-xs text-purple-500 ml-1">(${artist.disambiguation})</span>` : '';
+          const types = (artist.types || ['singer']).map(t => {
+            const labels = {singer:'🎤', lyricist:'📝', composer:'🎼', arranger:'🎹'};
+            return `<span class="text-xs text-gray-400 ml-1">${labels[t] || ''}</span>`;
+          }).join('');
+          return `
+            <a href="./artist.html?id=${artist.id}" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
+              <img src="${avatar}" class="w-8 h-8 rounded-full bg-gray-200" />
+              <div class="flex-1">
+                <div class="text-sm font-medium text-gray-800">${highlight(artist.name, keyword)}${disambiguation}${types}</div>
+              </div>
+            </a>
+          `;
+        }).join('');
+      }
+
+      // 专辑结果
+      const albums = data.albums || [];
+      if (albums.length > 0 && (currentSearchType === 'all' || currentSearchType === 'albums')) {
+        html += `<div class="px-4 py-2 text-xs font-semibold text-gray-400 uppercase border-t">💿 专辑</div>`;
+        html += albums.slice(0, 3).map(album => `
+          <a href="./album.html?id=${album.id}" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
+            <div class="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded flex items-center justify-center text-white text-xs">💿</div>
+            <div class="flex-1">
+              <div class="text-sm font-medium text-gray-800">${highlight(album.name, keyword)}</div>
+              <div class="text-xs text-gray-500">${album.year || ''}</div>
+            </div>
+          </a>
+        `).join('');
+      }
+
+      // 歌曲结果
+      const songs = data.songs || [];
+      if (songs.length > 0 && (currentSearchType === 'all' || currentSearchType === 'songs')) {
+        html += `<div class="px-4 py-2 text-xs font-semibold text-gray-400 uppercase border-t">🎵 单曲</div>`;
+        html += songs.slice(0, 5).map(song => `
+          <a href="./song.html?id=${song.id}" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
+            <div class="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 text-xs">🎵</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-800 truncate">${highlight(song.title, keyword)}</div>
+              <div class="text-xs text-gray-500 truncate">${highlight(song.artist_name, keyword)} · ${highlight(song.album_name, keyword)}</div>
+            </div>
+            <span class="text-xs text-gray-400 tabular-nums">${formatDuration(song.duration)}</span>
+          </a>
+        `).join('');
+      }
+
+      if (!html) {
+        html = '<div class="p-8 text-center text-gray-400">没有找到相关结果</div>';
+      }
+
+      // 底部显示"查看全部"（打开弹窗显示完整结果）
+      const totalCount = artists.length + albums.length + songs.length;
+      if (totalCount > 0) {
+        html += `<div class="border-t px-4 py-2 text-center">
+          <a href="javascript:void(0)" onclick="if(window.openSearchOverlayWithKeyword){window.openSearchOverlayWithKeyword('${keyword}')}" class="text-sm text-pink-600 hover:underline">查看全部 ${totalCount} 个结果 →</a>
+        </div>`;
+      }
+
+      results.innerHTML = html;
+    }
+
+    function highlight(text, keyword) {
+      if (!keyword) return text;
+      const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      return text.replace(regex, '<span class="text-pink-500 font-bold">$1</span>');
+    }
+
+    // 初始化首页
+    document.addEventListener('DOMContentLoaded', async () => {
+      initSearch();
+
+      try {
+        // 1) 加载艺术家（带作品数）
+        const artists = await api.getArtists(true);
+        const artistsGrid = document.getElementById('artistsGrid');
+        const filteredArtists = artists.slice(0, 6);
+        if (filteredArtists.length === 0) {
+          artistsGrid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-400">暂无艺术家</div>';
+        } else {
+          filteredArtists.forEach(artist => {
+            const avatar = artist.avatar || DEFAULT_LOGO;
+            const disambiguation = artist.disambiguation ? `<div class="text-xs text-purple-500 truncate">${artist.disambiguation}</div>` : '';
+            const types = (artist.types || ['singer']).map(t => {
+              const labels = {singer:'🎤', lyricist:'📝', composer:'🎼', arranger:'🎹'};
+              return `<span class="inline-block text-xs text-gray-400">${labels[t] || ''}</span>`;
+            }).join('');
+            artistsGrid.innerHTML += `
+              <a href="./artist.html?id=${artist.id}" class="bg-white rounded-2xl p-4 shadow-sm hover:shadow-lg transition text-center">
+                <img src="${avatar}" alt="${artist.name}" class="w-16 h-16 rounded-full mx-auto mb-2 bg-gray-100 object-contain" />
+                <div class="font-semibold text-gray-800 truncate">${artist.name}</div>
+                ${disambiguation}
+                <div class="mt-1">${types}</div>
+                <div class="text-xs text-gray-500 mt-1">${artist.song_count} 首作品</div>
+              </a>
+            `;
+          });
+        }
+
+        // 2) 加载最新歌曲 (左栏)
+        const songs = await api.getSongs();
+        const songsList = document.getElementById('songsList');
+        const recentSongs = songs.slice(0, 10);
+        if (recentSongs.length === 0) {
+          songsList.innerHTML = '<div class="p-8 text-center text-gray-400">暂无歌词</div>';
+        } else {
+          recentSongs.forEach(song => {
+            songsList.innerHTML += `
+              <a href="./song.html?id=${song.id}" class="flex items-center gap-4 p-4 hover:bg-gray-50 transition">
+                <div class="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 font-bold shrink-0">🎵</div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-semibold text-gray-800 truncate">${song.title}</div>
+                  <div class="text-sm text-gray-500 truncate">${song.artist_name || '未知'}${song.album_name ? ' · ' + song.album_name : ''}</div>
+                </div>
+                <div class="text-sm text-gray-400 shrink-0 tabular-nums">${formatDuration(song.duration)}</div>
+              </a>
+            `;
+          });
+        }
+
+        // 辅助函数：将 Markdown 转为纯文本
+        function mdToText(md) {
+          if (!md) return '';
+          let html = md;
+          if (typeof marked !== 'undefined') {
+            try { html = marked.parse(md); } catch(e) { html = md; }
+          }
+          const tmp = document.createElement('div');
+          tmp.innerHTML = html;
+          return (tmp.textContent || tmp.innerText || '').trim();
+        }
+
+        // 3) 加载站长逼逼文章 (右栏上)
+        try {
+          const articles = await api.getArticles({ status: 'published', limit: 4 });
+          const articlesList = document.getElementById('articlesList');
+          if (!articles || articles.length === 0) {
+            articlesList.innerHTML = `<div class="text-sm text-gray-400 text-center py-4">暂无文章，<a href="./posts.html" class="text-pink-600 hover:underline">去看看 →</a></div>`;
+          } else {
+            articlesList.innerHTML = articles.map(a => {
+              const date = a.created_at ? new Date(a.created_at).toLocaleDateString('zh-CN') : '';
+              const summary = a.summary && a.summary.trim() ? a.summary : mdToText(a.content).slice(0, 80) + (mdToText(a.content).length > 80 ? '...' : '');
+              return `
+                <a href="./post.html?slug=${a.slug || a.id}" class="block group p-3 rounded-lg hover:bg-pink-50/50 transition">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs text-gray-400">${date}</span>
+                  </div>
+                  <div class="text-sm font-semibold text-gray-800 group-hover:text-pink-600 truncate mb-1">${a.title}</div>
+                  <div class="text-xs text-gray-500 line-clamp-2">${summary}</div>
+                </a>
+              `;
+            }).join('');
+          }
+        } catch (artErr) {
+          console.error('加载文章失败:', artErr);
+          document.getElementById('articlesList').innerHTML = '<div class="text-xs text-gray-400 text-center py-4">加载文章失败</div>';
+        }
+
+        // 4) 加载优秀贡献者 (右栏下)
+        try {
+          const contributors = await api.getContributors();
+          const fcList = document.getElementById('featuredContributors');
+          if (!contributors || contributors.length === 0) {
+            fcList.innerHTML = `<div class="text-sm text-gray-400 text-center py-4">暂无贡献者，<a href="./contributors.html" class="text-pink-600 hover:underline">全部名单 →</a></div>`;
+          } else {
+            fcList.innerHTML = contributors.slice(0, 9).map(c => {
+              const avatar = c.avatar || DEFAULT_LOGO;
+              return `
+                <a href="./contributor.html?id=${c.id}" class="flex flex-col items-center p-2 rounded-lg hover:bg-pink-50/50 transition text-center">
+                  <img src="${avatar}" alt="${c.name}" class="w-12 h-12 rounded-full bg-gray-100 object-cover ring-1 ring-pink-100 mb-2"/>
+                  <span class="font-medium text-sm text-gray-800 truncate w-full">${c.name}</span>
+                </a>
+              `;
+            }).join('');
+          }
+        } catch (cErr) {
+          console.error('加载贡献者失败:', cErr);
+          document.getElementById('featuredContributors').innerHTML = '<div class="text-xs text-gray-400 text-center py-4">加载贡献者失败</div>';
+        }
+
+      } catch (err) {
+        console.error('加载数据失败:', err);
+      }
+    });
+  </script>
+  <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+</body>
+</html>
