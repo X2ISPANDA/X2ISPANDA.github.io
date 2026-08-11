@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -45,6 +45,10 @@
       height: 100%;
       object-fit: cover;
       z-index: 0;
+    }
+    .artist-bg-card.bg-editable .artist-bg-img {
+      cursor: ns-resize;
+      transition: object-position 0.05s linear;
     }
     .artist-bg-card::after {
       content: '';
@@ -314,12 +318,13 @@
         return `<span class="text-sm bg-gradient-to-r ${color} text-white px-3 py-1 rounded-full">${icon} ${label}</span>`;
       }).join('');
       
+      const bgPosY = artist.bg_position_y ?? 50;
       document.getElementById('artistPage').innerHTML = `
         <!-- Header Card -->
-        <div class="artist-bg-card rounded-2xl shadow-sm">
+        <div class="artist-bg-card bg-editable rounded-2xl shadow-sm" data-bg-pos="${bgPosY}">
           ${artist.bg_image
-            ? `<img src="${artist.bg_image}" alt="" class="artist-bg-img clickable-img" referrerpolicy="no-referrer" onclick="openImgPreview(['${artist.bg_image}', '${avatar}'], 0)" />`
-            : `<img src="https://i0.hdslb.com/bfs/article/a009cfa6551237d38e6f64ce46fd739037977624.jpg" alt="" class="artist-bg-img clickable-img" referrerpolicy="no-referrer" onclick="openImgPreview(['https://i0.hdslb.com/bfs/article/a009cfa6551237d38e6f64ce46fd739037977624.jpg', '${avatar}'], 0)" />`
+            ? `<img src="${artist.bg_image}" alt="" class="artist-bg-img clickable-img" referrerpolicy="no-referrer" style="object-position: center ${bgPosY}%" onclick="openImgPreview(['${artist.bg_image}', '${avatar}'], 0)" />`
+            : `<img src="https://i0.hdslb.com/bfs/article/a009cfa6551237d38e6f64ce46fd739037977624.jpg" alt="" class="artist-bg-img clickable-img" referrerpolicy="no-referrer" style="object-position: center ${bgPosY}%" onclick="openImgPreview(['https://i0.hdslb.com/bfs/article/a009cfa6551237d38e6f64ce46fd739037977624.jpg', '${avatar}'], 0)" />`
           }
           <div class="artist-bg-content px-6 py-6">
             <div class="flex flex-col md:flex-row items-center md:items-end gap-4">
@@ -329,14 +334,14 @@
                   <h1 class="text-3xl font-bold text-white drop-shadow">
                     ${artist.name}
                     ${artist.disambiguation ? `<span class="text-base font-normal text-white/80 ml-1">(${artist.disambiguation})</span>` : ''}
+                    ${artist.aliases && artist.aliases.length > 0 ? 
+                      `<span class="text-lg font-normal text-white/70 ml-2">${artist.aliases.join(' / ')}</span>` : ''
+                    }
                   </h1>
                 </div>
                 <div class="flex items-center gap-2 mt-2 flex-wrap">
                   ${typeBadges}
                 </div>
-                ${artist.aliases && artist.aliases.length > 0 ? 
-                  `<div class="text-white/70 text-sm mt-1">别名：${artist.aliases.join('、')}</div>` : ''
-                }
               </div>
             </div>
             <p class="mt-4 text-white/90">${artist.bio || '暂无简介'}</p>
@@ -529,6 +534,87 @@
         </div>
       `;
     }
+
+    // 背景图上下缩放调整
+    function initBgAdjust() {
+      const card = document.querySelector('.artist-bg-card');
+      const img = card?.querySelector('.artist-bg-img');
+      if (!card || !img) return;
+      let posY = parseInt(card.dataset.bgPos || '50', 10);
+      let dragging = false;
+      let lastY = 0;
+      let hintTimer = null;
+
+      // 创建底部提示
+      const ensureHint = () => {
+        if (!window._bgPosHintEl) {
+          const hint = document.createElement('div');
+          hint.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-black/70 text-white text-sm px-4 py-2 rounded-lg z-[10000] pointer-events-none backdrop-blur-sm transition-opacity duration-300';
+          document.body.appendChild(hint);
+          window._bgPosHintEl = hint;
+        }
+        window._bgPosHintEl.style.opacity = '1';
+      };
+
+      const showHint = () => {
+        ensureHint();
+        window._bgPosHintEl.textContent = `背景位置：${Math.round(posY)}%`;
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(() => {
+          if (window._bgPosHintEl) {
+            window._bgPosHintEl.style.opacity = '0';
+            setTimeout(() => {
+              if (window._bgPosHintEl && window._bgPosHintEl.style.opacity === '0') {
+                window._bgPosHintEl.remove();
+                window._bgPosHintEl = null;
+              }
+            }, 300);
+          }
+        }, 2000);
+      };
+
+      const apply = () => {
+        posY = Math.max(0, Math.min(100, posY));
+        img.style.objectPosition = `center ${posY}%`;
+        card.dataset.bgPos = posY;
+        showHint();
+      };
+
+      // 滚轮
+      card.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        posY += e.deltaY > 0 ? 3 : -3;
+        apply();
+      }, { passive: false });
+
+      // 拖拽 (上下拖动bg调整)
+      card.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.clickable-img') || e.target.closest('a')) return;
+        dragging = true;
+        lastY = e.clientY;
+        card.style.cursor = 'ns-resize';
+        apply();
+      });
+      window.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const delta = lastY - e.clientY;
+        posY += delta * 0.3;
+        lastY = e.clientY;
+        apply();
+      });
+      window.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        card.style.cursor = '';
+      });
+    }
+
+    // 在渲染完header后绑定
+    const _origRenderHeader = renderArtistHeader;
+    renderArtistHeader = function() {
+      _origRenderHeader();
+      setTimeout(initBgAdjust, 50);
+    };
 
     initArtist();
   </script>

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -134,7 +134,7 @@
               ${disambiguation ? `<span class="text-xs font-normal text-purple-500 ml-1">(${disambiguation})</span>` : ''}
             </div>
             ${artist.aliases && artist.aliases.length > 0 ? 
-              `<div class="text-xs text-gray-400 mt-0.5 truncate">aka ${artist.aliases.join(' / ')}</div>` : ''
+              `<div class="text-xs text-gray-400 mt-0.5 truncate">${artist.aliases.join(' / ')}</div>` : ''
             }
             <div class="text-sm text-gray-500 mt-2 flex items-center justify-center gap-1">
               ${statsHtml}

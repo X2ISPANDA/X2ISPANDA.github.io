@@ -1299,6 +1299,12 @@
         <el-form-item label="背景图URL">
           <el-input v-model="artistForm.bg_image" placeholder="留空使用主页默认背景图" />
         </el-form-item>
+        <el-form-item label="背景图垂直位置">
+          <div class="flex items-center gap-4 w-full">
+            <el-slider v-model="artistForm.bg_position_y" :min="0" :max="100" :step="1" show-input style="flex:1;" />
+            <span class="text-xs text-gray-400 whitespace-nowrap">0%=顶部 50%=居中 100%=底部</span>
+          </div>
+        </el-form-item>
         <el-form-item label="简介">
           <el-input v-model="artistForm.bio" type="textarea" :rows="3" />
         </el-form-item>
@@ -2539,7 +2545,7 @@
         const onQuickDescInput = () => {
           quickDescPreview.value = renderDesc(quickForm.value.description);
         };
-        const artistForm = ref({ name: '', avatar: '', bg_image: '', bio: '', aliases: [], types: ['singer'], disambiguation: '', sort: 0, is_show: true });
+        const artistForm = ref({ name: '', avatar: '', bg_image: '', bg_position_y: 50, bio: '', aliases: [], types: ['singer'], disambiguation: '', sort: 0, is_show: true });
         const albumForm = ref({ name: '', artist_ids: [], new_artists: [], new_artist_show: {}, year: '', cover: '' });
         const songRules = { title: [{ required: true, message: '请输入歌曲名', trigger: 'blur' }], artist_name: [{ required: true, message: '请输入歌手名', trigger: 'blur' }], album_name: [{ required: true, message: '请输入专辑名', trigger: 'blur' }], lrc_text: [{ required: true, message: '请输入歌词', trigger: 'blur' }] };
 
@@ -4122,6 +4128,7 @@
             aliases: artist.aliases || [],
             types: artist.types || [artist.type || 'singer'],
             disambiguation: artist.disambiguation || '',
+            bg_position_y: Number.isInteger(artist.bg_position_y) ? artist.bg_position_y : 50,
             sort: artist.sort || 0,
             is_show: artist.is_show !== false
           };
@@ -4141,6 +4148,7 @@
                 name: rest.name,
                 avatar: rest.avatar || null,
                 bg_image: rest.bg_image || '',
+                bg_position_y: Number.isInteger(rest.bg_position_y) ? rest.bg_position_y : 50,
                 bio: rest.bio || '',
                 aliases: rest.aliases || [],
                 types: rest.types || ['singer'],
