@@ -6,8 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>贡献者名单 - LrcShare</title>
   <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@iconify/iconify@3/dist/iconify.min.js"></script>
+  <script src="icons.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="/config.js"></script>
   <script src="supabase-client.js"></script>
   <script>
@@ -96,27 +97,20 @@
     function renderFeaturedCard(c) {
       const avatar = getAvatar(c.avatar);
       const tagsHtml = renderTags(c.tags);
-      const homepageLabel = c.homepage_label || '个人主页';
-      const homepageLink = (c.public_homepage !== false && c.homepage)
-        ? `<div class="flex items-center gap-1.5 mt-3 flex-wrap">
-             <span class="text-sm font-bold text-gray-700 whitespace-nowrap">个人主页:</span>
-             <a href="${c.homepage}" target="_blank" class="inline-flex items-center gap-1.5 text-sm text-purple-600 hover:text-purple-800 hover:underline" onclick="event.stopPropagation()">
-               <i class="fa-solid fa-link w-4 h-4"></i>
-               ${homepageLabel}
-             </a>
-           </div>` : '';
+      // 社交/联系方式图标行（URL 类型才显示，参考艺术家库样式）
+      const contactIcons = renderContactIcons(c);
       const bioHtml = (c.public_bio !== false && c.bio) ? `<p class="text-sm text-gray-600 mt-2">${c.bio}</p>` : '';
       const songCount = typeof c.song_count === 'number' ? c.song_count : 0;
 
       return `
-        <div class="bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl p-5 border border-pink-100 hover:shadow-md transition cursor-pointer" onclick="location.href='./contributor.html?id=${c.id}'">
+        <div class="bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl p-5 border border-pink-100 hover:shadow-md transition cursor-pointer relative" onclick="location.href='./contributor.html?id=${c.id}'">
           <div class="flex items-center gap-3">
             <img src="${avatar}" alt="${c.name}" class="w-14 h-14 rounded-full object-cover ring-2 ring-pink-200 flex-shrink-0" onerror="this.src='${DEFAULT_LOGO}'" />
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between gap-2">
                 <h3 class="font-bold text-gray-800 text-base truncate">${c.name}</h3>
                 <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-white text-pink-600 text-xs font-semibold rounded-full border border-pink-200 shadow-sm">
-                  <i class="fa-solid fa-music w-3.5 h-3.5"></i>
+                  <span class="iconify w-3.5 h-3.5" data-icon="mdi:music-note"></span>
                   ${songCount} 首
                 </span>
               </div>
@@ -124,9 +118,22 @@
             </div>
           </div>
           ${bioHtml}
-          ${homepageLink}
+          ${contactIcons}
         </div>
       `;
+    }
+
+    // 渲染联系方式图标行（仅 URL 类型才显示，类似艺术家库页）
+    function renderContactIcons(c) {
+      if (!c.public_contact || !c.contact_value) return '';
+      const cv = typeof c.contact_value === 'string' ? JSON.parse(c.contact_value || '{}') : c.contact_value;
+      const entries = Object.entries(cv || {}).filter(([k, v]) => v && /^https?:\/\//i.test(v));
+      if (entries.length === 0) return '';
+      const icons = entries.map(([k, v]) => {
+        const icon = ICON_MAP[k] || 'mdi:link-variant';
+        return `<a href="${v}" target="_blank" rel="noopener noreferrer" title="${k}" onclick="event.stopPropagation()" class="inline-flex items-center justify-center w-6 h-6 text-gray-500 hover:text-pink-600 transition"><span class="iconify" style="font-size:20px" data-icon="${icon}"></span></a>`;
+      }).join('');
+      return `<div class="flex items-center gap-1 mt-3 relative z-10">${icons}</div>`;
     }
 
     async function initContributors() {

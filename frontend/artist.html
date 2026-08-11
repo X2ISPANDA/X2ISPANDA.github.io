@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>艺术家详情 - LrcShare</title>
   <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@iconify/iconify@3/dist/iconify.min.js"></script>
+  <script src="icons.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/config.js"></script>
   <script src="supabase-client.js"></script>
@@ -243,6 +245,14 @@
       arranger: '编曲'
     };
 
+    const SOCIAL_ICONS = {
+      instagram: { title: 'Instagram' },
+      weibo: { title: '微博' },
+      bilibili: { title: 'B站' },
+      netease: { title: '网易云' },
+      qq: { title: 'QQ音乐' }
+    };
+
     let artistData = null;
     let currentTab = 'songs';
 
@@ -296,6 +306,17 @@
       return s;
     }
 
+    function renderSocialLinks(urls) {
+      if (!urls) return '';
+      const entries = Object.entries(urls).filter(([_, v]) => v && v.trim());
+      if (entries.length === 0) return '';
+      const links = entries.map(([key, url]) => {
+        const info = SOCIAL_ICONS[key] || { title: key };
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" title="${info.title}" class="inline-flex items-center justify-center w-10 h-10 text-white hover:text-pink-200 transition"><span class="iconify" style="font-size:32px" data-icon="${getIcon(key)}"></span></a>`;
+      }).join('');
+      return `<div class="flex items-center gap-1.5 mt-2">${links}</div>`;
+    }
+
     function renderArtistHeader() {
       const artist = artistData;
       const avatar = artist.avatar || generateAvatar(artist.name);
@@ -339,6 +360,7 @@
                     }
                   </h1>
                 </div>
+                ${renderSocialLinks(artist.urls)}
                 <div class="flex items-center gap-2 mt-2 flex-wrap">
                   ${typeBadges}
                 </div>

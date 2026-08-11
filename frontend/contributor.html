@@ -6,8 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>贡献者详情 - LrcShare</title>
   <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@iconify/iconify@3/dist/iconify.min.js"></script>
+  <script src="icons.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="/config.js"></script>
   <script src="supabase-client.js"></script>
   <script>
@@ -43,9 +44,9 @@
     <!-- 返回链接 -->
     <div class="mb-4">
       <a href="./contributors.html" class="inline-flex items-center gap-2 text-gray-500 hover:text-pink-600 transition">
-        <i class="fa-solid fa-arrow-left w-5 h-5"></i>
-        返回贡献者名单
-      </a>
+          <span class="iconify w-5 h-5" data-icon="mdi:arrow-left"></span>
+          返回贡献者名单
+        </a>
     </div>
 
     <!-- Hero 区 -->
@@ -100,6 +101,33 @@
       try { return new Date(dateStr).toISOString().slice(0, 10); } catch(e) { return ''; }
     }
 
+    function getContactDisplayName(type, value) {
+      // 从 URL 提取友好显示名
+      if (!/^https?:\/\//i.test(value)) return value;
+      try {
+        const url = new URL(value);
+        const path = url.pathname.replace(/\/+$/, '');
+        if (type === 'GitHub') {
+          // 取 GitHub 用户名（路径第一段）
+          const parts = path.split('/').filter(Boolean);
+          if (parts.length > 0) return parts[0];
+        }
+        if (type === 'B站' || type === 'Bilibili') {
+          // B站空间 UID 或用户名
+          const parts = path.split('/').filter(Boolean);
+          if (parts.length > 0) return parts[parts.length - 1];
+        }
+        if (type === '微博') {
+          const parts = path.split('/').filter(Boolean);
+          if (parts.length > 0) return parts[parts.length - 1];
+        }
+        // 通用：取路径最后一段
+        const parts = path.split('/').filter(Boolean);
+        if (parts.length > 0) return parts[parts.length - 1];
+      } catch(e) {}
+      return type;
+    }
+
     function renderHero(c) {
       const avatar = getAvatar(c.avatar);
       const name = c.name || '匿名贡献者';
@@ -107,42 +135,29 @@
       
 
       const links = [];
-      if (c.public_homepage !== false && c.homepage) {
-        const homepageLabel = c.homepage_label || '个人主页';
-        links.push(`
-          <a href="${c.homepage}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 text-gray-700 hover:text-purple-700 transition">
-            <i class="fa-solid fa-link w-5 h-5"></i>
-            ${homepageLabel}
-          </a>
-        `);
-      }
       if (c.public_contact && c.contact_value) {
         const cv = typeof c.contact_value === 'string' ? JSON.parse(c.contact_value || '{}') : c.contact_value;
-        const icons = {
-          'QQ': '<i class="fa-brands fa-qq w-5 h-5 inline-flex items-center justify-center"></i>',
-          '微信': '<i class="fa-brands fa-weixin w-5 h-5 inline-flex items-center justify-center"></i>',
-          '邮箱': '<i class="fa-solid fa-envelope w-5 h-5 inline-flex items-center justify-center"></i>',
-          'Email': '<i class="fa-solid fa-envelope w-5 h-5 inline-flex items-center justify-center"></i>',
-          'B站': '<i class="fa-solid fa-tower-broadcast w-5 h-5 inline-flex items-center justify-center"></i>',
-          'Bilibili': '<i class="fa-solid fa-tower-broadcast w-5 h-5 inline-flex items-center justify-center"></i>',
-          'GitHub': '<i class="fa-brands fa-github w-5 h-5 inline-flex items-center justify-center"></i>',
-          '博客': '<i class="fa-solid fa-blog w-5 h-5 inline-flex items-center justify-center"></i>',
-          '抖音': '<i class="fa-brands fa-tiktok w-5 h-5 inline-flex items-center justify-center"></i>',
-          '微博': '<i class="fa-brands fa-weibo w-5 h-5 inline-flex items-center justify-center"></i>',
-          'Twitter': '<i class="fa-brands fa-twitter w-5 h-5 inline-flex items-center justify-center"></i>',
-          '小红书': '<i class="fa-solid fa-book w-5 h-5 inline-flex items-center justify-center"></i>',
-          '电话': '<i class="fa-solid fa-phone w-5 h-5 inline-flex items-center justify-center"></i>',
-          '手机': '<i class="fa-solid fa-mobile-screen w-5 h-5 inline-flex items-center justify-center"></i>'
-        };
-        
+
         Object.entries(cv || {}).filter(([k,v]) => v).forEach(([k,v]) => {
-          const icon = icons[k] || '<i class="fa-solid fa-link w-5 h-5 inline-flex items-center justify-center"></i>';
-          links.push(`
-            <div class="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 text-gray-600">
-              ${icon}
-              <span>${k}：${v}</span>
-            </div>
-          `);
+          const icon = renderContactIcon(k);
+          // URL 类型的联系方式（GitHub/B站/微博/网易音乐人/个人主页等）：点击跳转，显示友好名
+          const isUrl = /^https?:\/\//i.test(v);
+          const displayName = isUrl ? getContactDisplayName(k, v) : v;
+          if (isUrl) {
+            links.push(`
+              <a href="${v}" target="_blank" rel="noopener noreferrer" title="${k}" class="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 text-gray-600 hover:border-purple-300 hover:bg-purple-50 hover:text-purple-700 transition">
+                ${icon}
+                <span>${displayName}</span>
+              </a>
+            `);
+          } else {
+            links.push(`
+              <div class="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 text-gray-600" title="${k}">
+                ${icon}
+                <span>${v}</span>
+              </div>
+            `);
+          }
         });
       }
 
@@ -183,7 +198,7 @@
       if (!works || works.length === 0) {
         return `
           <div class="text-center py-12 text-gray-400">
-            <i class="fa-solid fa-file-lines w-16 h-16 mx-auto mb-3 text-gray-300"></i>
+            <span class="iconify w-16 h-16 mx-auto mb-3 text-gray-300" data-icon="mdi:file-document-outline"></span>
             <p>暂无公开作品记录（或为 LOGO、文案等非歌词贡献）</p>
           </div>
         `;

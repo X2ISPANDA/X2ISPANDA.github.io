@@ -491,7 +491,9 @@
 
     // 获取所有贡献者
     async getContributors(options = {}) {
-      let query = supabase.from('contributors').select('*');
+      let query = supabase
+        .from('contributors')
+        .select('id, name, avatar, bio, public_bio, contact_value, public_contact, is_owner, created_at, sort, tags');
       const { data, error } = await query;
       if (error) throw error;
       
@@ -543,7 +545,10 @@
 
     // 获取单个贡献者
     async getContributor(id) {
-      const { data, error } = await supabase.from('contributors').select('*').eq('id', id).single();
+      const { data, error } = await supabase
+        .from('contributors')
+        .select('id, name, avatar, bio, public_bio, contact_value, public_contact, tags, is_owner, created_at, sort')
+        .eq('id', id).single();
       if (error) throw error;
       if (data) {
         // 动态计算该贡献者的歌曲数
@@ -598,19 +603,21 @@
       }
       
       // 2. 如果 songs 表没有数据，回退到 submissions 表（按提交者名模糊匹配）
+      // 注意：只 select 必要字段，避免 song_data 里的歌词内容造成响应过大
       const contributor = await this.getContributor(contributorId);
       if (contributor?.name) {
         const { data: submissions } = await supabase
           .from('submissions')
-          .select('*')
+          .select('id, created_at, song_data->title, song_data->artist, song_data->type')
           .eq('status', 'approved')
-          .ilike('user_name', `%${contributor.name}%`);
+          .ilike('user_name', `%${contributor.name}%`)
+          .order('created_at', { ascending: false });
         
         return (submissions || []).map(s => ({
           id: s.id,
-          title: s.song_data?.title || '',
-          artist: s.song_data?.artist || '',
-          type: s.song_data?.type || 'song',
+          title: s['song_data->title'] || s.title || '',
+          artist: s['song_data->artist'] || s.artist || '',
+          type: s['song_data->type'] || 'song',
           created_at: s.created_at
         }));
       }
@@ -676,9 +683,12 @@
           user_name: payload.submitter_name || '匿名',
           user_email: payload.submitter_email || '',
           submitter_contact: payload.submitter_contact || '',
-          submitter_homepage: payload.submitter_homepage || '',
           submitter_public_contact: !!payload.submitter_public_contact,
-          submitter_public_homepage: payload.submitter_public_homepage !== false,
+          // 投稿人选择的贡献者关联 & 操作标记
+          contributor_id: payload.contributor_id || null,
+          submitter_request_update: !!payload.submitter_request_update,
+          submitter_request_clear:  !!payload.submitter_request_clear,
+          submitter_bio: payload.submitter_bio,
           song_data: songData,
           status: 'pending',
           created_at: new Date().toISOString()

@@ -1311,6 +1311,30 @@
         <el-form-item label="别名">
           <el-select v-model="artistForm.aliases" multiple filterable allow-create placeholder="输入别名后回车添加" style="width: 100%;" />
         </el-form-item>
+        <el-form-item label="社交链接">
+          <div class="w-full space-y-2">
+            <div class="flex items-center gap-2">
+              <span class="w-16 text-gray-500 text-sm">Instagram</span>
+              <el-input v-model="artistForm.urls.instagram" placeholder="https://instagram.com/..." size="small" />
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-16 text-gray-500 text-sm">微博</span>
+              <el-input v-model="artistForm.urls.weibo" placeholder="https://weibo.com/..." size="small" />
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-16 text-gray-500 text-sm">B站</span>
+              <el-input v-model="artistForm.urls.bilibili" placeholder="https://space.bilibili.com/..." size="small" />
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-16 text-gray-500 text-sm">网易</span>
+              <el-input v-model="artistForm.urls.netease" placeholder="https://music.163.com/#/artist?id=..." size="small" />
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-16 text-gray-500 text-sm">QQ音乐</span>
+              <el-input v-model="artistForm.urls.qq" placeholder="https://y.qq.com/..." size="small" />
+            </div>
+          </div>
+        </el-form-item>
         <el-form-item label="置顶排序">
           <el-input-number v-model="artistForm.sort" :min="0" :step="1" style="width: 100%;" />
           <div class="text-xs text-gray-400 mt-1">0=按作品数自动排序，1最置顶，2次之...</div>
@@ -1911,7 +1935,7 @@
         </el-form-item>
         <el-form-item label="联系方式类型">
           <el-select v-model="contributorForm.contact_types" multiple placeholder="选择使用的联系方式" style="width:100%;" @change="onContactTypesChange">
-            <el-option v-for="ct in ['QQ','微信','邮箱','B站','GitHub','博客','抖音','微博']" :key="ct" :label="ct" :value="ct" />
+            <el-option v-for="ct in ['QQ','微信','邮箱','B站','GitHub','博客','抖音','微博','Twitter','小红书','网易音乐人','个人主页','电话','手机']" :key="ct" :label="ct" :value="ct" />
           </el-select>
         </el-form-item>
         <template v-for="ct in contributorForm.contact_types" :key="ct">
@@ -1923,15 +1947,6 @@
           <div style="display: flex; align-items: center; gap: 10px;">
             <el-switch v-model="contributorForm.public_contact" active-text="公开" inactive-text="隐藏" />
             <span style="color: #909399; font-size: 12px;">开启后联系方式将在贡献者主页展示</span>
-          </div>
-        </el-form-item>
-        <el-form-item label="个人主页">
-          <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <el-input v-model="contributorForm.homepage" placeholder="https://..." style="flex: 1;" />
-              <el-switch v-model="contributorForm.public_homepage" active-text="公开" inactive-text="隐藏" />
-            </div>
-            <el-input v-model="contributorForm.homepage_label" placeholder="链接显示文字，如：网易音乐人主页（留空显示"个人主页"）" />
           </div>
         </el-form-item>
         <el-form-item label="简介">
@@ -2215,8 +2230,8 @@
         const editingContributor = ref(false);
         const contributorForm = reactive({
           id: '', name: '', avatar: '', bio: '', contact_types: [], contact_value: {},
-          homepage: '', homepage_label: '', location: '', tags: [], is_owner: false,
-          sort: 0, public_contact: false, public_homepage: true, public_bio: true
+          location: '', tags: [], is_owner: false,
+          sort: 0, public_contact: false, public_bio: true
         });
 
         const friendsList = ref([]);
@@ -2545,7 +2560,7 @@
         const onQuickDescInput = () => {
           quickDescPreview.value = renderDesc(quickForm.value.description);
         };
-        const artistForm = ref({ name: '', avatar: '', bg_image: '', bg_position_y: 50, bio: '', aliases: [], types: ['singer'], disambiguation: '', sort: 0, is_show: true });
+        const artistForm = ref({ name: '', avatar: '', bg_image: '', bg_position_y: 50, bio: '', aliases: [], types: ['singer'], disambiguation: '', sort: 0, is_show: true, urls: { instagram: '', weibo: '', bilibili: '', netease: '', qq: '' } });
         const albumForm = ref({ name: '', artist_ids: [], new_artists: [], new_artist_show: {}, year: '', cover: '' });
         const songRules = { title: [{ required: true, message: '请输入歌曲名', trigger: 'blur' }], artist_name: [{ required: true, message: '请输入歌手名', trigger: 'blur' }], album_name: [{ required: true, message: '请输入专辑名', trigger: 'blur' }], lrc_text: [{ required: true, message: '请输入歌词', trigger: 'blur' }] };
 
@@ -2648,7 +2663,7 @@
               status: 'approved',
               approved_at: new Date().toISOString()
             });
-            
+
             // 触发 server 邮件通知（通过）
             try {
               const s = settings.value || {};
@@ -2668,46 +2683,78 @@
             } catch (e) {
               console.log('Server approve 邮件通知跳过:', e.message);
             }
-            
+
             // 创建歌曲
             const sd = sub.edited_data;
             const songId = 's' + Date.now();
-            
-            // 自动绑定贡献者：
-            // 1) 如果投稿已关联贡献者 → 直接使用
-            // 2) 如果投稿者名已存在贡献者列表 → 匹配并使用
-            // 3) 如果投稿者不在贡献者列表 → 自动创建新贡献者
+
+            // ---- 解析 submitter_contact，兼容旧数据把 submitter_homepage 合并到 "个人主页" ----
+            let contactValue;
+            try {
+              contactValue = typeof sub.submitter_contact === 'string'
+                ? JSON.parse(sub.submitter_contact || '{}')
+                : (sub.submitter_contact || {});
+              // 旧数据兼容：submitter_homepage 非空 → 写入 "个人主页"
+              if (sub.submitter_homepage && sub.submitter_homepage !== '' && sub.submitter_public_homepage) {
+                if (!contactValue['个人主页']) contactValue['个人主页'] = sub.submitter_homepage;
+              }
+            } catch (_) { contactValue = {}; }
+
+            // ---- 解析 submitter_bio ----
+            const submitterBio = (sub.submitter_bio !== undefined && sub.submitter_bio !== null)
+              ? String(sub.submitter_bio)
+              : null;
+
             let contributorId = sub.contributor_id || null;
-            if (!contributorId && sub.user_name) {
-              // 先查找是否已有同名贡献者
-              const { data: existingContributors } = await supabase
-                .from('contributors')
-                .select('id, name')
-                .or(`name.ilike.%${sub.user_name}%,name.ilike.%${sub.user_name}%`);
-              if (existingContributors && existingContributors.length > 0) {
-                const exactMatch = existingContributors.find(c => c.name === sub.user_name);
-                contributorId = exactMatch ? exactMatch.id : existingContributors[0].id;
-              } else {
-                // 投稿者不存在 → 自动创建贡献者
-                const newContributorId = 'ct' + Date.now();
-                await api.insert('contributors', {
-                  id: newContributorId,
-                  name: sub.user_name,
-                  bio: '通过投稿自动创建的贡献者',
-                  contact_types: [],
-                  contact_value: sub.submitter_contact || '',
-                  homepage: sub.submitter_homepage || '',
-                  public_contact: sub.submitter_public_contact || false,
-                  public_homepage: sub.submitter_public_homepage ?? true,
+            let contributorAction = 'none'; // none | new | update | clear
+
+            if (contributorId) {
+              // ==== 路径 1：投稿时已经关联了贡献者（从下拉选的 / 管理员手动绑的）====
+              if (sub.submitter_request_clear) {
+                // 清空：保留 id, name, tags, is_owner；其余全置默认值
+                await api.update('contributors', contributorId, {
+                  avatar: null,
+                  bio: '',
                   public_bio: true,
-                  tags: ['歌词提交'],
-                  is_owner: false,
+                  contact_value: {},
+                  public_contact: false,
+                  location: '',
                   sort: 999
                 });
-                contributorId = newContributorId;
+                contributorAction = 'clear';
+              } else if (sub.submitter_request_update) {
+                // 更新：全字段覆盖（本次填了什么就覆盖什么；联系方式空就是清空）
+                // 不允许通过投稿改 tags / name / is_owner / avatar
+                const patch = {
+                  contact_value: contactValue,
+                  public_contact: !!sub.submitter_public_contact
+                };
+                // bio：填了就覆盖（包括空字符串就是清空），没填就不碰
+                if (submitterBio !== null) patch.bio = submitterBio;
+                await api.update('contributors', contributorId, patch);
+                contributorAction = 'update';
               }
+              // else: 两个都没勾 → 什么都不改 contributor
+            } else {
+              // ==== 路径 2：投稿时没有关联贡献者 → 永远新建，绝不按名称匹配（防同名误伤）====
+              const newContributorId = 'ct' + Date.now();
+              const bioText = submitterBio !== null ? submitterBio : '通过投稿自动创建的贡献者';
+              await api.insert('contributors', {
+                id: newContributorId,
+                name: sub.user_name || '匿名贡献者',
+                bio: bioText,
+                contact_types: [],
+                contact_value: contactValue,
+                public_contact: !!sub.submitter_public_contact,
+                public_bio: true,
+                tags: ['歌词提交'],
+                is_owner: false,
+                sort: 999
+              });
+              contributorId = newContributorId;
+              contributorAction = 'new';
             }
-            
+
             const songRecord = {
               id: songId,
               title: sd.title,
@@ -2723,8 +2770,14 @@
               contributor_id: contributorId
             };
             await api.insert('songs', songRecord);
-            
-            ElementPlus.ElMessage.success('审核通过，已发布' + (contributorId ? '（已关联贡献者）' : ''));
+
+            const actionText = {
+              none: '（已关联贡献者）',
+              new:  '（已自动创建贡献者）',
+              update:'（已更新贡献者资料）',
+              clear: '（已清空贡献者资料）'
+            }[contributorAction] || '';
+            ElementPlus.ElMessage.success('审核通过，已发布' + actionText);
             await loadData();
           } catch (err) {
             ElementPlus.ElMessage.error('操作失败: ' + err.message);
@@ -3917,7 +3970,7 @@
 
         const openNewArtist = () => {
           editingArtist.value = null;
-          artistForm.value = { name: '', avatar: '', bio: '', aliases: [], types: ['singer'], disambiguation: '', sort: 0, is_show: true };
+          artistForm.value = { name: '', avatar: '', bio: '', aliases: [], types: ['singer'], disambiguation: '', sort: 0, is_show: true, bg_position_y: 50, urls: { instagram: '', weibo: '', bilibili: '', netease: '', qq: '' } };
           showArtistDialog.value = true;
         };
 
@@ -4123,6 +4176,7 @@
         // CRUD for artists
         const editArtist = (artist) => {
           editingArtist.value = artist;
+          const urls = artist.urls || {};
           artistForm.value = {
             ...artist,
             aliases: artist.aliases || [],
@@ -4130,7 +4184,14 @@
             disambiguation: artist.disambiguation || '',
             bg_position_y: Number.isInteger(artist.bg_position_y) ? artist.bg_position_y : 50,
             sort: artist.sort || 0,
-            is_show: artist.is_show !== false
+            is_show: artist.is_show !== false,
+            urls: {
+              instagram: urls.instagram || '',
+              weibo: urls.weibo || '',
+              bilibili: urls.bilibili || '',
+              netease: urls.netease || '',
+              qq: urls.qq || ''
+            }
           };
           showArtistDialog.value = true;
         };
@@ -4154,7 +4215,8 @@
                 types: rest.types || ['singer'],
                 disambiguation: rest.disambiguation || '',
                 sort: rest.sort || 0,
-                is_show: rest.is_show !== false
+                is_show: rest.is_show !== false,
+                urls: rest.urls || { instagram: '', weibo: '', bilibili: '', netease: '', qq: '' }
               };
               await api.update('artists', editingArtist.value.id, payload);
               ElementPlus.ElMessage.success('保存成功');
@@ -4517,8 +4579,8 @@
           editingContributor.value = false;
           Object.assign(contributorForm, {
             id: '', name: '', avatar: '', bio: '', contact_types: [], contact_value: {},
-            homepage: '', homepage_label: '', location: '', tags: [], is_owner: false,
-            sort: 0, public_contact: false, public_homepage: true, public_bio: true,
+            location: '', tags: [], is_owner: false,
+            sort: 0, public_contact: false, public_bio: true,
             created_at: new Date().toISOString()
           });
           showContributorDialog.value = true;
@@ -4541,11 +4603,10 @@
           Object.assign(contributorForm, {
             id: row.id, name: row.name || '', avatar: row.avatar || '',
             bio: row.bio || '', contact_types: contactTypes, contact_value: newCv,
-            homepage: row.homepage || '', homepage_label: row.homepage_label || '', location: row.location || '',
+            location: row.location || '',
             tags: [...(row.tags || [])], is_owner: !!row.is_owner,
             sort: row.sort || 0,
             public_contact: !!row.public_contact,
-            public_homepage: row.public_homepage !== false,
             public_bio: row.public_bio !== false
           });
           showContributorDialog.value = true;
@@ -4559,14 +4620,11 @@
               bio: contributorForm.bio || '',
               contact_types: contributorForm.contact_types || [],
               contact_value: contributorForm.contact_value || {},
-              homepage: contributorForm.homepage || '',
-              homepage_label: contributorForm.homepage_label || '',
               location: contributorForm.location || '',
               tags: contributorForm.tags || [],
               is_owner: !!contributorForm.is_owner,
               sort: contributorForm.sort || 0,
               public_contact: !!contributorForm.public_contact,
-              public_homepage: !!contributorForm.public_homepage,
               public_bio: contributorForm.public_bio !== false
             };
             if (editingContributor.value) {

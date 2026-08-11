@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -7,177 +7,318 @@
   <title>投稿歌词 - LrcShare</title>
   <script src="/vendor/tailwind.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Vue 3 + Element Plus（用于昵称远程搜索和联系方式动态管理） -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus/dist/index.css" />
+  <script src="https://cdn.jsdelivr.net/npm/element-plus"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@iconify/iconify@3/dist/iconify.min.js"></script>
   <script src="/config.js"></script>
   <script src="supabase-client.js"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    /* Element Plus 输入框样式与 Tailwind 对齐 */
+    .el-input__wrapper { padding: 4px 11px; box-shadow: 0 0 0 1px #e5e7eb inset; border-radius: 0.5rem; }
+    .el-select .el-input.is-focus .el-input__wrapper,
+    .el-input.is-focus .el-input__wrapper { box-shadow: 0 0 0 1px #ec4899 inset, 0 0 0 1px #ec4899; }
+    .el-textarea__inner { border: 1px solid #e5e7eb; border-radius: 0.5rem; }
+    .el-form-item { margin-bottom: 0; }
+    .el-checkbox { --el-checkbox-checked-bg-color: #ec4899; --el-checkbox-checked-border-color: #ec4899; }
+    .el-alert { border-radius: 0.75rem; }
   </style>
 </head>
 <body class="bg-gray-50">
-  <main class="max-w-3xl mx-auto px-4 py-8">
-    <div class="bg-white rounded-2xl shadow-sm p-8">
-      <h1 class="text-3xl font-bold text-gray-800 mb-2">📝 投稿歌词</h1>
-      <p class="text-gray-500 mb-4">提交你的歌词作品，管理员审核通过后将发布到网站</p>
+  <div id="app">
+    <main class="max-w-3xl mx-auto px-4 py-8">
+      <div class="bg-white rounded-2xl shadow-sm p-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">📝 投稿歌词</h1>
+        <p class="text-gray-500 mb-4">提交你的歌词作品，管理员审核通过后将发布到网站</p>
 
-      <!-- 投稿须知 -->
-      <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-        <div class="text-sm font-semibold text-amber-800 mb-2">📌 投稿须知</div>
-        <div class="text-sm text-amber-700 leading-relaxed">
-          本网站专注于收集<span class="font-semibold">音乐平台上没有滚动歌词</span>或<span class="font-semibold">因各种原因已下架</span>歌曲的歌词。<br/>
-          如果网易云、QQ音乐等平台已有该歌曲的滚动歌词，请勿重复投稿。<br/>
+        <!-- 投稿须知 -->
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+          <div class="text-sm font-semibold text-amber-800 mb-2">📌 投稿须知</div>
+          <div class="text-sm text-amber-700 leading-relaxed">
+            本网站专注于收集<span class="font-semibold">音乐平台上没有滚动歌词</span>或<span class="font-semibold">因各种原因已下架</span>歌曲的歌词。<br/>
+            如果网易云、QQ音乐等平台已有该歌曲的滚动歌词，请勿重复投稿。<br/>
+          </div>
         </div>
-      </div>
 
-      <div id="submitForm" class="space-y-6">
-        <!-- 用户信息 -->
-        <div class="border-b pb-6">
-          <h2 class="text-lg font-semibold text-gray-700 mb-4">👤 你的信息</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+        <div v-show="!submitted" class="space-y-6">
+          <!-- ===== 用户信息区（Vue 管理） ===== -->
+          <div class="border-b pb-6">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">👤 你的信息</h2>
+
+            <!-- 昵称：远程搜索下拉 -->
+            <div class="mb-4">
               <label class="block text-sm font-medium text-gray-700 mb-1">昵称 <span class="text-red-500">*</span></label>
-              <input type="text" id="user_name" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="例如：音乐爱好者" />
+              <el-select
+                :model-value="userForm.name"
+                filterable
+                remote
+                clearable
+                :reserve-keyword="false"
+                placeholder="搜索并选择已有贡献者，或输入新昵称后点选下方蓝色新建项"
+                :remote-method="searchContributors"
+                :loading="contributorLoading"
+                style="width: 100%;"
+                @change="onContributorNameChange"
+              >
+                <el-option
+                  v-for="c in contributorOptions"
+                  :key="c.id"
+                  :label="c.name"
+                  :value="c.name"
+                >
+                  <div class="flex items-center gap-2">
+                    <img :src="c.avatar || DEFAULT_LOGO" class="w-6 h-6 rounded-full object-cover" :onerror="avatarFallback" />
+                    <span class="font-medium">{{ c.name }}</span>
+                    <span v-if="c.tags && c.tags.length" class="text-xs text-gray-400 ml-1">{{ (c.tags||[]).slice(0,2).join(' · ') }}</span>
+                  </div>
+                </el-option>
+                <!-- 显式新建选项：只要用户输入了内容就显示，允许同名新建 -->
+                <el-option
+                  v-if="currentQuery"
+                  key="__new__"
+                  :label="`➕ 新建贡献者「${currentQuery}」`"
+                  :value="`__NEW__:${currentQuery}`"
+                >
+                  <span class="text-blue-500 font-medium">➕ 新建贡献者「{{ currentQuery }}」</span>
+                </el-option>
+              </el-select>
+              <div v-if="isNewContributor" class="text-xs text-blue-600 mt-1">
+                将作为新贡献者「{{ userForm.name }}」创建（即使数据库已有同名贡献者，也不会自动挂到他人账号下）
+              </div>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">邮箱 <span class="text-red-500">*</span></label>
-              <input type="email" id="user_email" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="用于接收审核结果通知" />
+
+            <!-- 选中已有贡献者的提示条 -->
+            <el-alert
+              v-if="selectedContributor"
+              type="warning"
+              :closable="false"
+              show-icon
+              class="mb-4"
+            >
+              <template #title>
+                你选择了已有贡献者 <b>{{ selectedContributor.name }}</b>
+              </template>
+              由于没有登录流程，我们不会预填你的联系方式等隐私数据到表单。<br/>
+              只是想用你之前的身份投稿 → <b>下方信息不用再填</b>，直接去填歌曲信息即可。<br/>
+              如需<b>更新</b>你的联系方式/简介，或需要<b>清空</b>之前填过的所有信息，请勾选下方对应选项。
+            </el-alert>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4">
+              <!-- 邮箱 -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  邮箱
+                  <span v-if="!selectedContributor" class="text-red-500">*</span>
+                  <span v-else class="text-xs text-gray-400 ml-1">（选填，填了可收到审核邮件）</span>
+                </label>
+                <input
+                  type="email"
+                  v-model="userForm.email"
+                  :disabled="!!(selectedContributor && !userForm.request_update)"
+                  class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  placeholder="用于接收审核结果通知"
+                />
+              </div>
+
+              <!-- 简介 -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  简介
+                  <span class="text-xs text-gray-400 ml-1">（选填）</span>
+                </label>
+                <input
+                  type="text"
+                  v-model="userForm.bio"
+                  :disabled="!!(selectedContributor && !userForm.request_update)"
+                  class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  placeholder="一句话介绍自己"
+                />
+              </div>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">联系方式 <span class="text-xs text-gray-400">（选填，可添加多种方式）</span></label>
-              <div id="contact_list" class="space-y-2"></div>
-              <button type="button" id="add_contact_btn" class="mt-1 text-xs text-pink-600 hover:text-pink-700">+ 添加联系方式</button>
+
+            <!-- 联系方式动态行 -->
+            <div class="mt-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                联系方式
+                <span class="text-xs text-gray-400 ml-1">（选填，可添加多种方式）</span>
+              </label>
+              <div class="space-y-2">
+                <div v-for="(c, idx) in userForm.contacts" :key="idx" class="flex gap-2 items-center">
+                  <el-select v-model="c.type" style="width: 110px; flex-shrink: 0;" :disabled="!!(selectedContributor && !userForm.request_update)">
+                    <el-option
+                      v-for="t in CONTACT_TYPES"
+                      :key="t"
+                      :label="t"
+                      :value="t"
+                      :disabled="isContactTypeSelected(t, idx)"
+                    />
+                  </el-select>
+                  <el-input
+                    v-model="c.value"
+                    placeholder="号码/链接"
+                    style="flex: 1; min-width: 0;"
+                    :disabled="!!(selectedContributor && !userForm.request_update)"
+                  />
+                  <el-button
+                    type="danger"
+                    link
+                    @click="removeContact(idx)"
+                    :disabled="!!(selectedContributor && !userForm.request_update)"
+                  >移除</el-button>
+                </div>
+              </div>
+              <el-button
+                type="primary"
+                link
+                size="small"
+                class="mt-1"
+                @click="addContact"
+                :disabled="!!(selectedContributor && !userForm.request_update)"
+              >+ 添加联系方式</el-button>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">个人主页 <span class="text-xs text-gray-400">（选填）</span></label>
-              <input type="text" id="user_homepage" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="例如：https://github.com/xxx 或 https://space.bilibili.com/xxx" />
+
+            <!-- 更新/清空 选项（仅选中已有贡献者显示） -->
+            <div v-if="selectedContributor" class="mt-5 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+              <div class="text-sm font-medium text-blue-800 mb-2">🛠️ 对已有贡献者资料的操作</div>
+              <label class="flex items-start gap-2 text-sm text-blue-900 cursor-pointer select-none">
+                <el-checkbox
+                  v-model="userForm.request_update"
+                  @change="onRequestUpdateChange"
+                />
+                <span>
+                  <b>更新我的信息</b><br/>
+                  <span class="text-xs text-blue-700">勾选后解锁上方邮箱/联系方式/简介，本次填写的内容将在审核通过时<b>全量覆盖</b>你在贡献者库里的对应字段。</span>
+                </span>
+              </label>
+              <label class="flex items-start gap-2 text-sm text-blue-900 cursor-pointer select-none">
+                <el-checkbox
+                  v-model="userForm.request_clear"
+                  @change="onRequestClearChange"
+                />
+                <span>
+                  <b>清空我的信息</b><br/>
+                  <span class="text-xs text-blue-700">勾选后上方输入保持禁用；审核通过时把该贡献者除 ID、昵称、标签外的所有字段置空。要删除 ID 请联系管理员。</span>
+                </span>
+              </label>
+            </div>
+
+            <!-- 公开选项 -->
+            <div
+              class="mt-4 p-3 bg-pink-50/50 rounded-lg space-y-2"
+              :class="{ 'opacity-50 pointer-events-none': selectedContributor && !userForm.request_update }"
+            >
+              <div class="text-sm font-medium text-gray-700 mb-2">🔓 信息公开（默认不公开，勾选后将在贡献者页面展示）</div>
+              <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input type="checkbox" v-model="userForm.public_contact" class="w-4 h-4 accent-pink-500" />
+                <span>公开联系方式（联系方式将展示在贡献者主页）</span>
+              </label>
+              <div class="text-xs text-gray-500 mt-2">💡 想进入 <a href="./contributors.html" target="_blank" class="text-pink-600 hover:underline">贡献者名单</a>？勾选公开选项，并通过更多投稿让作品被审核通过即可！</div>
             </div>
           </div>
-          <!-- 公开选项 -->
-          <div class="mt-4 p-3 bg-pink-50/50 rounded-lg space-y-2">
-            <div class="text-sm font-medium text-gray-700 mb-2">🔓 信息公开（默认均不公开，勾选后将在贡献者页面展示）</div>
-            <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-              <input type="checkbox" id="public_contact" class="w-4 h-4 accent-pink-500" />
-              <span>公开联系方式（联系方式将展示在贡献者主页）</span>
-            </label>
-            <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-              <input type="checkbox" id="public_homepage" class="w-4 h-4 accent-pink-500" checked />
-              <span>公开个人主页（你的音乐主页/博客/社交链接）</span>
-            </label>
-            <div class="text-xs text-gray-500 mt-2">💡 想进入 <a href="./contributors.html" target="_blank" class="text-pink-600 hover:underline">贡献者名单</a>？勾选公开选项，并通过更多投稿让作品被审核通过即可！</div>
+
+          <!-- ===== 歌曲信息（仍保留原生 autocomplete + id） ===== -->
+          <div class="border-b pb-6">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">🎵 歌曲信息</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">歌曲名 <span class="text-red-500">*</span></label>
+                <input type="text" id="song_title" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" />
+              </div>
+              <div class="relative autocomplete-container">
+                <label class="block text-sm font-medium text-gray-700 mb-1">歌手 <span class="text-red-500">*</span></label>
+                <input type="text" id="song_artist" required class="autocomplete-input w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" data-source="artists" data-types="singer" />
+                <div class="autocomplete-dropdown hidden absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10"></div>
+              </div>
+              <div class="relative autocomplete-container">
+                <label class="block text-sm font-medium text-gray-700 mb-1">专辑 <span class="text-red-500">*</span></label>
+                <input type="text" id="song_album" required class="autocomplete-input w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" data-source="albums" />
+                <div class="autocomplete-dropdown hidden absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10"></div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">专辑艺术家</label>
+                <input type="text" id="song_album_artist" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="选择专辑后自动填充，也可手动输入" />
+                <div class="text-xs text-gray-400 mt-1">如唱片公司、音乐平台等，不限于歌手</div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">时长</label>
+                <input type="text" id="song_duration" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="如：03:30" />
+              </div>
+              <div class="relative autocomplete-container">
+                <label class="block text-sm font-medium text-gray-700 mb-1">作词</label>
+                <input type="text" id="song_lyricist" class="autocomplete-input w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" data-source="artists" data-types="lyricist" />
+                <div class="autocomplete-dropdown hidden absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10"></div>
+              </div>
+              <div class="relative autocomplete-container">
+                <label class="block text-sm font-medium text-gray-700 mb-1">作曲</label>
+                <input type="text" id="song_composer" class="autocomplete-input w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" data-source="artists" data-types="composer" />
+                <div class="autocomplete-dropdown hidden absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 视频链接 -->
+          <div class="border-b pb-6">
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">🎬 视频链接 <span class="text-xs text-gray-400 font-normal">（选填）</span></h2>
+            <p class="text-sm text-gray-500 mb-2">如有歌曲视频（B站/YouTube），可粘贴链接，将在歌曲页展示视频播放器</p>
+            <input type="text" id="song_video_url" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="如：https://www.bilibili.com/video/BV1xx... 或 https://www.youtube.com/watch?v=xxx" />
+          </div>
+
+          <!-- 歌词内容 -->
+          <div>
+            <h2 class="text-lg font-semibold text-gray-700 mb-4">📝 LRC 歌词内容</h2>
+            <p class="text-sm text-gray-500 mb-2">
+              粘贴完整的 LRC 格式歌词，包括时间轴标签。例如：<br/>
+              <code class="bg-gray-100 px-2 py-1 rounded text-xs">[ti:歌曲名]<br/>[ar:歌手]<br/>[00:01.00] 歌词内容</code>
+            </p>
+            <textarea id="lrc_text" required rows="12" class="w-full px-4 py-2 border border-gray-200 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="在此粘贴完整的LRC歌词..."></textarea>
+          </div>
+
+          <!-- 提交按钮 -->
+          <div class="flex items-center gap-4">
+            <button
+              @click="handleSubmit"
+              :disabled="submitting"
+              class="px-8 py-3 bg-pink-500 text-white font-medium rounded-xl hover:bg-pink-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >{{ submitting ? '提交中...' : '提交审核' }}</button>
+            <a href="./index.html" class="text-gray-500 hover:text-gray-700">返回首页</a>
           </div>
         </div>
 
-        <!-- 歌曲信息 -->
-        <div class="border-b pb-6">
-          <h2 class="text-lg font-semibold text-gray-700 mb-4">🎵 歌曲信息</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">歌曲名 <span class="text-red-500">*</span></label>
-              <input type="text" id="song_title" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" />
-            </div>
-            <div class="relative autocomplete-container">
-              <label class="block text-sm font-medium text-gray-700 mb-1">歌手 <span class="text-red-500">*</span></label>
-              <input type="text" id="song_artist" required class="autocomplete-input w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" data-source="artists" data-types="singer" />
-              <div class="autocomplete-dropdown hidden absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10"></div>
-            </div>
-            <div class="relative autocomplete-container">
-              <label class="block text-sm font-medium text-gray-700 mb-1">专辑 <span class="text-red-500">*</span></label>
-              <input type="text" id="song_album" required class="autocomplete-input w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" data-source="albums" />
-              <div class="autocomplete-dropdown hidden absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10"></div>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">专辑艺术家</label>
-              <input type="text" id="song_album_artist" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="选择专辑后自动填充，也可手动输入" />
-              <div class="text-xs text-gray-400 mt-1">如唱片公司、音乐平台等，不限于歌手</div>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">时长</label>
-              <input type="text" id="song_duration" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="如：03:30" />
-            </div>
-            <div class="relative autocomplete-container">
-              <label class="block text-sm font-medium text-gray-700 mb-1">作词</label>
-              <input type="text" id="song_lyricist" class="autocomplete-input w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" data-source="artists" data-types="lyricist" />
-              <div class="autocomplete-dropdown hidden absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10"></div>
-            </div>
-            <div class="relative autocomplete-container">
-              <label class="block text-sm font-medium text-gray-700 mb-1">作曲</label>
-              <input type="text" id="song_composer" class="autocomplete-input w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" data-source="artists" data-types="composer" />
-              <div class="autocomplete-dropdown hidden absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 视频链接 -->
-        <div class="border-b pb-6">
-          <h2 class="text-lg font-semibold text-gray-700 mb-4">🎬 视频链接 <span class="text-xs text-gray-400 font-normal">（选填）</span></h2>
-          <p class="text-sm text-gray-500 mb-2">如有歌曲视频（B站/YouTube），可粘贴链接，将在歌曲页展示视频播放器</p>
-          <input type="text" id="song_video_url" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="如：https://www.bilibili.com/video/BV1xx... 或 https://www.youtube.com/watch?v=xxx" />
-        </div>
-
-        <!-- 歌词内容 -->
-        <div>
-          <h2 class="text-lg font-semibold text-gray-700 mb-4">📝 LRC 歌词内容</h2>
-          <p class="text-sm text-gray-500 mb-2">
-            粘贴完整的 LRC 格式歌词，包括时间轴标签。例如：<br/>
-            <code class="bg-gray-100 px-2 py-1 rounded text-xs">[ti:歌曲名]<br/>[ar:歌手]<br/>[00:01.00] 歌词内容</code>
-          </p>
-          <textarea id="lrc_text" required rows="12" class="w-full px-4 py-2 border border-gray-200 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="在此粘贴完整的LRC歌词..."></textarea>
-        </div>
-
-        <!-- 提交按钮 -->
-        <div class="flex items-center gap-4">
-          <button id="submitBtn" class="px-8 py-3 bg-pink-500 text-white font-medium rounded-xl hover:bg-pink-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
-            提交审核
-          </button>
-          <a href="./index.html" class="text-gray-500 hover:text-gray-700">返回首页</a>
+        <!-- 提交成功 -->
+        <div v-show="submitted" class="text-center py-12">
+          <div class="text-6xl mb-4">✅</div>
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">提交成功！</h2>
+          <p class="text-gray-500 mb-6">我们已经收到您的歌词投稿，管理员会尽快审核。<br v-if="userForm.email"/>审核结果将通过邮件通知您，请留意查收。</p>
+          <a href="./index.html" class="px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600">返回首页</a>
         </div>
       </div>
-
-      <!-- 提交成功 -->
-      <div id="successMsg" class="hidden text-center py-12">
-        <div class="text-6xl mb-4">✅</div>
-        <h2 class="text-2xl font-bold text-gray-800 mb-2">提交成功！</h2>
-        <p class="text-gray-500 mb-6">我们已经收到您的歌词投稿，管理员会尽快审核。<br/>审核结果将通过邮件通知您，请留意查收。</p>
-        <a href="./index.html" class="px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600">返回首页</a>
-      </div>
-    </div>
-  </main>
+    </main>
+  </div>
 
   <script>
+    // ========= 全局常量 & 原生 autocomplete 数据 =========
     const api = window.LRCSHAPE_API;
+    const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
+    const CONTACT_TYPES = ['QQ','微信','邮箱','B站','GitHub','博客','抖音','微博','Twitter','小红书','网易音乐人','个人主页','电话','手机'];
 
-    // Autocomplete functionality
-    const autocompleteData = {
-      artists: [],
-      albums: []
-    };
-
-    // Load data
+    const autocompleteData = { artists: [], albums: [] };
     async function loadAutocompleteData() {
       try {
         const [artistsData, albumsData] = await Promise.all([
-          api.getArtists(true),
-          api.getAlbums(true)
+          api.getArtists(true), api.getAlbums(true)
         ]);
         autocompleteData.artists = artistsData;
         autocompleteData.albums = albumsData;
-      } catch (e) {
-        console.error('Failed to load autocomplete data', e);
-      }
+      } catch (e) { console.error('Failed to load autocomplete data', e); }
     }
-
-    // Filter and display suggestions
     function showSuggestions(input, dropdown) {
       const query = input.value.trim().toLowerCase();
-      if (!query) {
-        dropdown.classList.add('hidden');
-        dropdown.innerHTML = '';
-        return;
-      }
-
+      if (!query) { dropdown.classList.add('hidden'); dropdown.innerHTML = ''; return; }
       const source = input.dataset.source;
       const filterTypes = input.dataset.types ? input.dataset.types.split(',') : null;
       let items = [];
-
       if (source === 'artists' && autocompleteData.artists) {
         items = autocompleteData.artists.filter(a => {
           if (!a.name.toLowerCase().includes(query)) return false;
@@ -188,211 +329,290 @@
           return true;
         });
       } else if (source === 'albums' && autocompleteData.albums) {
-        items = autocompleteData.albums.filter(a => 
-          a.name.toLowerCase().includes(query)
-        );
+        items = autocompleteData.albums.filter(a => a.name.toLowerCase().includes(query));
       }
-
-      if (items.length === 0) {
-        dropdown.classList.add('hidden');
-        dropdown.innerHTML = '';
-        return;
-      }
-
-      // Render suggestions
+      if (items.length === 0) { dropdown.classList.add('hidden'); dropdown.innerHTML = ''; return; }
       const labels = {singer:'🎤', lyricist:'📝', composer:'🎼', arranger:'🎹'};
       dropdown.innerHTML = items.slice(0, 8).map(item => {
         if (source === 'artists') {
           const types = item.types || ['singer'];
           const typeIcons = types.map(t => labels[t] || '').join('');
           const disamb = item.disambiguation ? `<span class="text-xs text-purple-500 ml-1">(${item.disambiguation})</span>` : '';
-          return `<div class="suggestion-item px-4 py-2 hover:bg-pink-50 cursor-pointer border-b border-gray-100" data-value="${item.name}">
-            <div class="flex items-center">
-              <span class="text-sm font-medium text-gray-800">${item.name}</span>
-              ${disamb}
-              <span class="ml-2 text-sm">${typeIcons}</span>
-            </div>
-          </div>`;
+          return `<div class="suggestion-item px-4 py-2 hover:bg-pink-50 cursor-pointer border-b border-gray-100" data-value="${item.name}"><div class="flex items-center"><span class="text-sm font-medium text-gray-800">${item.name}</span>${disamb}<span class="ml-2 text-sm">${typeIcons}</span></div></div>`;
         } else {
-          return `<div class="suggestion-item px-4 py-2 hover:bg-pink-50 cursor-pointer border-b border-gray-100" data-value="${item.name}">
-            <div class="text-sm font-medium text-gray-800">${item.name}</div>
-            ${item.year ? `<div class="text-xs text-gray-500">${item.year}</div>` : ''}
-          </div>`;
+          return `<div class="suggestion-item px-4 py-2 hover:bg-pink-50 cursor-pointer border-b border-gray-100" data-value="${item.name}"><div class="text-sm font-medium text-gray-800">${item.name}</div>${item.year ? `<div class="text-xs text-gray-500">${item.year}</div>` : ''}</div>`;
         }
       }).join('');
-
       dropdown.classList.remove('hidden');
-
-      // Handle click selection
       dropdown.querySelectorAll('.suggestion-item').forEach(el => {
         el.addEventListener('mousedown', (e) => {
           e.preventDefault();
           input.value = el.dataset.value;
           dropdown.classList.add('hidden');
-          
-          // If selecting an album, auto-fill album artist
           if (source === 'albums') {
             const selectedAlbum = items.find(i => i.name === el.dataset.value);
             if (selectedAlbum) {
               const ids = selectedAlbum.artist_ids || [];
-              const artistNames = ids.map(id => {
-                const a = autocompleteData.artists.find(x => x.id === id);
-                return a ? a.name : '';
-              }).filter(Boolean);
+              const artistNames = ids.map(id => { const a = autocompleteData.artists.find(x => x.id === id); return a ? a.name : ''; }).filter(Boolean);
               const artistName = artistNames.join(' / ') || selectedAlbum.artist_name || '';
               const albumArtistInput = document.getElementById('song_album_artist');
-              if (albumArtistInput && artistName) {
-                albumArtistInput.value = artistName;
-              }
+              if (albumArtistInput && artistName) albumArtistInput.value = artistName;
             }
           }
         });
       });
     }
-
-    // Initialize autocomplete
     function initAutocomplete() {
-      const inputs = document.querySelectorAll('.autocomplete-input');
-      
-      inputs.forEach(input => {
+      document.querySelectorAll('.autocomplete-input').forEach(input => {
         const container = input.closest('.autocomplete-container');
         const dropdown = container.querySelector('.autocomplete-dropdown');
-        
-        input.addEventListener('input', () => {
-          showSuggestions(input, dropdown);
-        });
-
-        input.addEventListener('focus', () => {
-          if (input.value.trim()) {
-            showSuggestions(input, dropdown);
-          }
-        });
-
-        input.addEventListener('blur', () => {
-          setTimeout(() => {
-            dropdown.classList.add('hidden');
-          }, 200);
-        });
+        input.addEventListener('input', () => showSuggestions(input, dropdown));
+        input.addEventListener('focus', () => { if (input.value.trim()) showSuggestions(input, dropdown); });
+        input.addEventListener('blur', () => setTimeout(() => dropdown.classList.add('hidden'), 200));
       });
     }
-
-    // Initialize on load
     loadAutocompleteData().then(initAutocomplete);
 
-    // ============ 联系方式动态管理 ============
-    const contactTypes = ['QQ', '微信', '邮箱', 'B站', 'GitHub', '博客', '抖音', '微博'];
-    const contactList = document.getElementById('contact_list');
-    const addContactBtn = document.getElementById('add_contact_btn');
+    // ========= Vue 3 App（用户信息 & 提交） =========
+    const { createApp, reactive, ref, computed, nextTick } = Vue;
 
-    const addContactRow = (type = '', value = '') => {
-      const row = document.createElement('div');
-      row.className = 'flex gap-2 items-center';
-      row.innerHTML = `
-        <select class="contact_type px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm" style="min-width:90px;">
-          ${contactTypes.map(t => `<option value="${t}" ${t===type?'selected':''}>${t}</option>`).join('')}
-        </select>
-        <input type="text" class="contact_value flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm" placeholder="号码/链接" value="${value}" />
-        <button type="button" class="remove_btn text-gray-400 hover:text-red-500 px-2">✕</button>
-      `;
-      row.querySelector('.remove_btn').addEventListener('click', () => row.remove());
-      contactList.appendChild(row);
-    };
+    const vm = createApp({
+      setup() {
+        const DEFAULT_LOGO_V = DEFAULT_LOGO;
+        const avatarFallback = `this.onerror=null;this.src='${DEFAULT_LOGO_V}';`;
 
-    addContactBtn.addEventListener('click', () => addContactRow());
+        const userForm = reactive({
+          name: '',
+          email: '',
+          bio: '',
+          contacts: [{ type: CONTACT_TYPES[0], value: '' }],
+          public_contact: false,
+          request_update: false,
+          request_clear: false
+        });
 
-    // 收集联系方式数据
-    const collectContacts = () => {
-      const items = contactList.querySelectorAll('.flex');
-      const result = {};
-      items.forEach(row => {
-        const type = row.querySelector('.contact_type').value;
-        const value = row.querySelector('.contact_value').value.trim();
-        if (type && value) result[type] = value;
-      });
-      return JSON.stringify(result);
-    };
+        // 贡献者远程搜索
+        const contributorOptions = ref([]);
+        const contributorLoading = ref(false);
+        const allContributors = ref([]); // 缓存一份全量（排除站长），用于精确匹配 selectedContributor
+        const currentQuery = ref('');     // 当前输入框文本，用于"新建"选项 label
+        const isNewContributor = ref(false); // 用户是否点选了"新建"选项
+        let contributorSearchTimer = null;
 
-    // 初始化一行
-    addContactRow();
-
-    document.getElementById('submitBtn').addEventListener('click', async () => {
-      const btn = document.getElementById('submitBtn');
-      btn.disabled = true;
-      btn.textContent = '提交中...';
-
-      const data = {
-        user_name: document.getElementById('user_name').value.trim(),
-        user_email: document.getElementById('user_email').value.trim(),
-        song_data: {
-          title: document.getElementById('song_title').value.trim(),
-          artist: document.getElementById('song_artist').value.trim(),
-          album: document.getElementById('song_album').value.trim(),
-          artist_name: document.getElementById('song_album_artist').value.trim(),
-          lyricist: document.getElementById('song_lyricist').value.trim(),
-          composer: document.getElementById('song_composer').value.trim(),
-          duration: document.getElementById('song_duration').value.trim(),
-          lrc_text: document.getElementById('lrc_text').value.trim(),
-          video_url: document.getElementById('song_video_url').value.trim()
+        async function loadAllContributorsOnce() {
+          if (allContributors.value.length > 0) return allContributors.value;
+          try {
+            const list = await api.getContributors();
+            allContributors.value = (list || []).filter(c => !c.is_owner);
+          } catch (e) { console.error('load contributors failed', e); }
+          return allContributors.value;
         }
-      };
+        loadAllContributorsOnce();
 
-      // 验证必填字段
-      if (!data.user_name || !data.user_email || !data.song_data.title || 
-          !data.song_data.artist || !data.song_data.album || !data.song_data.lrc_text) {
-        alert('请填写所有必填字段');
-        btn.disabled = false;
-        btn.textContent = '提交审核';
-        return;
-      }
+        async function searchContributors(query) {
+          // 实时记录输入文本，"新建"选项 label 需要用到
+          currentQuery.value = (query || '').trim();
+          if (contributorSearchTimer) clearTimeout(contributorSearchTimer);
+          contributorLoading.value = true;
+          contributorSearchTimer = setTimeout(async () => {
+            try {
+              const list = await loadAllContributorsOnce();
+              const q = (query || '').trim().toLowerCase();
+              contributorOptions.value = q
+                ? list.filter(c => (c.name || '').toLowerCase().includes(q)).slice(0, 20)
+                : list.slice(0, 20);
+            } finally {
+              contributorLoading.value = false;
+            }
+          }, 200);
+        }
 
-      // 简单验证邮箱格式
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(data.user_email)) {
-        alert('请填写正确的邮箱地址');
-        btn.disabled = false;
-        btn.textContent = '提交审核';
-        return;
-      }
+        // 当前选中的精确匹配贡献者对象
+        // 仅当用户点选了已有项时才返回对象；点选"新建"项 → 返回 null
+        const selectedContributor = computed(() => {
+          if (isNewContributor.value) return null;
+          const name = (userForm.name || '').trim();
+          if (!name) return null;
+          return allContributors.value.find(c => c.name === name) || null;
+        });
 
-      try {
-        const payload = {
-          type: 'song',
-          title: data.song_data.title,
-          artist: data.song_data.artist,
-          album: data.song_data.album,
-          lyricist: data.song_data.lyricist,
-          composer: data.song_data.composer,
-          duration: data.song_data.duration,
-          lrc_text: data.song_data.lrc_text,
-          video_url: data.song_data.video_url,
-          submitter_name: data.user_name,
-          submitter_email: data.user_email,
-          submitter_contact: collectContacts(),
-          submitter_homepage: document.getElementById('user_homepage').value.trim(),
-          submitter_public_contact: document.getElementById('public_contact').checked,
-          submitter_public_homepage: document.getElementById('public_homepage').checked
+        function onContributorNameChange(val) {
+          // 区分：用户点选了"新建"选项 vs 已有项 vs 清空
+          if (val && typeof val === 'string' && val.startsWith('__NEW__:')) {
+            const name = val.slice('__NEW__:'.length);
+            userForm.name = name;
+            isNewContributor.value = true;
+          } else {
+            userForm.name = val || '';
+            isNewContributor.value = false;
+          }
+          // 重置操作标记（仅当不是已有贡献者时）
+          if (!selectedContributor.value) {
+            userForm.request_update = false;
+            userForm.request_clear = false;
+          }
+          // 清空当前查询文本（保留 userForm.name 作为最终值）
+          // 注意：不清空 currentQuery，否则新建选项会消失。让 el-select 自然关闭即可
+        }
+
+        function onRequestUpdateChange(val) {
+          if (val) userForm.request_clear = false;
+        }
+        function onRequestClearChange(val) {
+          if (val) userForm.request_update = false;
+        }
+
+        function addContact() {
+          // 自动选第一个还没被选过的类型
+          const usedTypes = new Set(userForm.contacts.map(c => c.type).filter(Boolean));
+          const nextType = CONTACT_TYPES.find(t => !usedTypes.has(t)) || CONTACT_TYPES[0];
+          userForm.contacts.push({ type: nextType, value: '' });
+        }
+        function removeContact(idx) {
+          if (userForm.contacts.length <= 1) {
+            // 至少保留一条，直接清空值而不是删除
+            userForm.contacts[0].value = '';
+            return;
+          }
+          userForm.contacts.splice(idx, 1);
+        }
+        // 判断某类型是否已被其他行选中（当前行除外，避免自己禁用自己）
+        function isContactTypeSelected(type, currentIdx) {
+          return userForm.contacts.some((c, i) => i !== currentIdx && c.type === type);
+        }
+
+        function collectContactsObj() {
+          const obj = {};
+          userForm.contacts.forEach(c => {
+            const t = (c.type || '').trim();
+            const v = (c.value || '').trim();
+            if (t && v) obj[t] = v;
+          });
+          return obj;
+        }
+
+        const submitted = ref(false);
+        const submitting = ref(false);
+
+        async function handleSubmit() {
+          // 1. 取歌曲相关的原生 input 值
+          const getVal = id => { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+          const song_data = {
+            title: getVal('song_title'),
+            artist: getVal('song_artist'),
+            album: getVal('song_album'),
+            artist_name: getVal('song_album_artist'),
+            lyricist: getVal('song_lyricist'),
+            composer: getVal('song_composer'),
+            duration: getVal('song_duration'),
+            lrc_text: getVal('lrc_text'),
+            video_url: getVal('song_video_url')
+          };
+          const name = (userForm.name || '').trim();
+          const email = (userForm.email || '').trim();
+
+          // 2. 验证
+          if (!name) { ElementPlus.ElMessage.warning('请填写昵称'); return; }
+          if (!selectedContributor.value && !email) {
+            ElementPlus.ElMessage.warning('请填写邮箱');
+            return;
+          }
+          if (email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) { ElementPlus.ElMessage.warning('请填写正确的邮箱地址'); return; }
+          }
+          if (!song_data.title || !song_data.artist || !song_data.album || !song_data.lrc_text) {
+            ElementPlus.ElMessage.warning('请填写所有必填的歌曲字段（歌曲名/歌手/专辑/歌词）');
+            return;
+          }
+          if (selectedContributor.value && userForm.request_clear && userForm.request_update) {
+            ElementPlus.ElMessage.warning('更新信息和清空信息不能同时勾选');
+            return;
+          }
+
+          // 3. 构造 payload
+          // 联系方法：如果选了已有贡献者且没勾更新 → 发送空（后台不会去改他的信息）
+          let contactObj;
+          if (selectedContributor.value && !userForm.request_update) {
+            contactObj = {};
+          } else {
+            contactObj = collectContactsObj();
+          }
+
+          // 选了已有贡献者 → 填 contributor_id 关联
+          const contributor_id = selectedContributor.value ? selectedContributor.value.id : null;
+
+          // email：选了已有贡献者但没填 → 尝试从后端读取发通知
+          let finalEmail = email;
+          if (selectedContributor.value && !finalEmail) {
+            // 从 contact_value 的"邮箱"字段兜底，找不到就留空（通知发不出就算了）
+            try {
+              const cv = selectedContributor.value.contact_value;
+              const parsed = typeof cv === 'string' ? JSON.parse(cv || '{}') : (cv || {});
+              if (parsed && parsed['邮箱']) finalEmail = parsed['邮箱'];
+            } catch (_) {}
+          }
+
+          const payload = {
+            type: 'song',
+            title: song_data.title,
+            artist: song_data.artist,
+            album: song_data.album,
+            lyricist: song_data.lyricist,
+            composer: song_data.composer,
+            duration: song_data.duration,
+            lrc_text: song_data.lrc_text,
+            video_url: song_data.video_url,
+            submitter_name: name,
+            submitter_email: finalEmail,
+            submitter_contact: JSON.stringify(contactObj),
+            submitter_public_contact: !!userForm.public_contact,
+            // 贡献者关联 & 操作标记
+            contributor_id: contributor_id,
+            submitter_request_update: !!(selectedContributor.value && userForm.request_update),
+            submitter_request_clear:  !!(selectedContributor.value && userForm.request_clear),
+            // 简介（仅新建 / 勾选了更新时才发）
+            submitter_bio: (selectedContributor.value && !userForm.request_update) ? null : (userForm.bio || null)
+          };
+
+          submitting.value = true;
+          try {
+            let result;
+            try {
+              result = await api.submitSubmissionV2(payload);
+            } catch (e) {
+              result = await api.submitSubmission(payload);
+            }
+            if (result) {
+              submitted.value = true;
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+              ElementPlus.ElMessage.error('提交失败，请稍后重试');
+            }
+          } catch (err) {
+            console.error(err);
+            ElementPlus.ElMessage.error('网络错误，请稍后重试');
+          } finally {
+            submitting.value = false;
+          }
+        }
+
+        return {
+          DEFAULT_LOGO: DEFAULT_LOGO_V,
+          CONTACT_TYPES,
+          avatarFallback,
+          userForm,
+          contributorOptions, contributorLoading, searchContributors,
+          selectedContributor, onContributorNameChange,
+          currentQuery, isNewContributor,
+          onRequestUpdateChange, onRequestClearChange,
+          addContact, removeContact, isContactTypeSelected,
+          submitted, submitting, handleSubmit
         };
-        // 优先使用 v2 接口；失败时回退到旧接口
-        let result;
-        try {
-          result = await api.submitSubmissionV2(payload);
-        } catch (e) {
-          result = await api.submitSubmission(payload);
-        }
-
-        if (result) {
-          document.getElementById('submitForm').classList.add('hidden');
-          document.getElementById('successMsg').classList.remove('hidden');
-        } else {
-          alert('提交失败，请稍后重试');
-        }
-      } catch (err) {
-        alert('网络错误，请稍后重试');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = '提交审核';
       }
     });
+    vm.use(ElementPlus);
+    vm.mount('#app');
   </script>
   <script src="layout.js"></script>
 </body>

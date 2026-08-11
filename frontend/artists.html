@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>艺术家库 - LrcShare</title>
   <script src="/vendor/tailwind.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@iconify/iconify@3/dist/iconify.min.js"></script>
+  <script src="icons.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/config.js"></script>
   <script src="supabase-client.js"></script>
@@ -77,6 +79,14 @@
       arranger: '🎹'
     };
 
+    const SOCIAL_ICONS = {
+      instagram: { title: 'Instagram' },
+      weibo: { title: '微博' },
+      bilibili: { title: 'B站' },
+      netease: { title: '网易云' },
+      qq: { title: 'QQ音乐' }
+    };
+
     let currentType = 'singer';
 
     async function initArtists() {
@@ -115,15 +125,21 @@
           return `<span class="bg-gradient-to-r ${color} text-white px-2 py-0.5 rounded-full text-xs whitespace-nowrap">${icon} ${label}</span>`;
         }).join(' ');
         
-        // 统计信息
-        const workCount = artist.song_count || 0;
-        let statsHtml = `<span>🎵 ${workCount} 首作品</span>`;
-        if (types.includes('singer') && artist.album_count > 0) {
-          statsHtml = `<span>📀 ${artist.album_count} 专辑</span><span>·</span><span>🎵 ${workCount} 首作品</span>`;
+        // 社交链接
+        let socialHtml = '';
+        if (artist.urls) {
+          const socialEntries = Object.entries(artist.urls).filter(([_, v]) => v && v.trim());
+          if (socialEntries.length > 0) {
+            socialHtml = `<div class="flex items-center justify-center gap-1 mt-1 relative z-10">` +
+              socialEntries.map(([key, url]) => {
+                const info = SOCIAL_ICONS[key] || { title: key };
+                return `<a href="${url}" target="_blank" rel="noopener noreferrer" title="${info.title}" onclick="event.stopPropagation()" class="inline-flex items-center justify-center w-10 h-10 text-gray-400 hover:text-pink-500 transition"><span class="iconify" style="font-size:32px" data-icon="${getIcon(key)}"></span></a>`;
+              }).join('') + `</div>`;
+          }
         }
         
         return `
-          <a href="./artist.html?id=${artist.id}" class="bg-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition text-center group relative overflow-hidden">
+          <div onclick="location.href='./artist.html?id=${artist.id}'" class="bg-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition text-center group relative overflow-hidden cursor-pointer">
             <!-- Type badges -->
             <div class="absolute top-2 right-2 flex gap-1 flex-wrap justify-end max-w-[60%]">
               ${typeBadges}
@@ -133,14 +149,12 @@
               ${artist.name}
               ${disambiguation ? `<span class="text-xs font-normal text-purple-500 ml-1">(${disambiguation})</span>` : ''}
             </div>
+            ${socialHtml}
             ${artist.aliases && artist.aliases.length > 0 ? 
               `<div class="text-xs text-gray-400 mt-0.5 truncate">${artist.aliases.join(' / ')}</div>` : ''
             }
-            <div class="text-sm text-gray-500 mt-2 flex items-center justify-center gap-1">
-              ${statsHtml}
-            </div>
-            ${artist.bio ? `<div class="text-xs text-gray-400 mt-2 line-clamp-2">${artist.bio}</div>` : ''}
-          </a>
+            ${artist.bio ? `<div class="text-xs text-gray-400 mt-2 line-clamp-2" title="${artist.bio}">${artist.bio}</div>` : ''}
+          </div>
         `;
       }).join('');
     }

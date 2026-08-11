@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -165,9 +165,7 @@
           try {
             const contributor = await api.getContributor(currentSong.contributor_id);
             if (contributor) {
-              const contributorLink = contributor.public_homepage
-                ? `<a href="./contributor.html?id=${contributor.id}" class="text-pink-600 hover:underline">${contributor.name}</a>`
-                : contributor.name;
+              const contributorLink = `<a href="./contributor.html?id=${contributor.id}" class="text-pink-600 hover:underline">${contributor.name}</a>`;
               contributorHtml = `<div><div class="text-xs text-gray-400 mb-1">歌词贡献</div><div class="font-medium text-gray-700">${contributorLink}</div></div>`;
             }
           } catch (e) { console.error('获取贡献者失败:', e); }
