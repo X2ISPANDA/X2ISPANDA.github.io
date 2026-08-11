@@ -12,10 +12,23 @@
       console.error('LRCSHAPE_CONFIG 未加载，请确保 config.js 已引入');
       return null;
     }
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+      console.error('Supabase SDK 未加载，请检查 CDN 脚本是否能正常访问');
+      return null;
+    }
     return window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
   }
 
-  const supabase = initSupabase();
+  let supabase = initSupabase();
+  // CDN 加载慢时的兜底：最多重试 5 秒
+  if (!supabase) {
+    let retries = 0;
+    const tm = setInterval(() => {
+      retries++;
+      supabase = initSupabase();
+      if (supabase || retries >= 25) clearInterval(tm);
+    }, 200);
+  }
 
   // 统计某艺术家的总作品数（演唱+作词+作曲+编曲）
   async function getArtistWorkCount(artistId) {
@@ -121,9 +134,23 @@
     return { artists: artistResults || [], albums: Array.from(albumMap.values()), songs: songResults };
   }
 
+  // 每次调用 API 之前兜底等 supabase client 就绪，避免 CDN 加载慢导致报错
+  async function waitForClient() {
+    if (supabase) return supabase;
+    return new Promise((resolve, reject) => {
+      let tries = 0;
+      const tm = setInterval(() => {
+        tries++;
+        if (supabase) { clearInterval(tm); resolve(supabase); }
+        else if (tries > 50) { clearInterval(tm); reject(new Error('Supabase client 初始化失败，请检查网络或 CDN 脚本')); }
+      }, 100);
+    });
+  }
+
   // API 辅助函数（与前端 fetch API 兼容的格式）
   window.LRCSHAPE_API = {
-    supabase,
+    get supabase() { return supabase; },
+    waitForClient,
 
     // 获取所有艺术家，可选获取作品数
     async getArtists(includeCount = false) {
@@ -698,4 +725,17 @@
       return data?.[0] || null;
     }
   };
+
+  // 统一给所有 async API 方法包一层 waitForClient，避免 CDN 加载竞态
+  (function wrapAsync() {
+    Object.keys(window.LRCSHAPE_API).forEach(key => {
+      const fn = window.LRCSHAPE_API[key];
+      if (typeof fn === 'function' && fn.constructor.name === 'AsyncFunction') {
+        window.LRCSHAPE_API[key] = async function(...args) {
+          await waitForClient();
+          return fn.apply(this, args);
+        };
+      }
+    });
+  })();
 })();
