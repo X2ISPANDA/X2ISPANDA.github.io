@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -95,7 +95,9 @@
             <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
               ${data.albums.map(album => `
                 <a href="./album.html?id=${album.id}" class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl">
-                  <div class="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center text-white">💿</div>
+                  <div class="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center overflow-hidden">
+                    ${album.cover ? `<img src="${album.cover}" referrerpolicy="no-referrer" class="w-full h-full object-cover" />` : '<span class="text-white text-lg">💿</span>'}
+                  </div>
                   <div>
                     <div class="font-medium text-gray-800">${highlightKeyword(album.name, keyword)}</div>
                     <div class="text-sm text-gray-500">${album.year || ''}</div>

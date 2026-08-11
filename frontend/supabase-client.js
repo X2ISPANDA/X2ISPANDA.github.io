@@ -45,14 +45,16 @@
     if (!kw) return { artists: [], albums: [], songs: [] };
 
     // 1. 搜索艺术家（按名称匹配）
-    const { data: artistResults } = await supabase.from('artists').select('*').ilike('name', `%${kw}%`);
+    const { data: artistResults, error: artistErr } = await supabase.from('artists').select('*').ilike('name', `%${kw}%`);
+    if (artistErr) console.warn('artist search error:', artistErr);
     const matchedArtistIds = (artistResults || []).map(a => a.id);
 
-    // 2. 搜索歌曲：按标题匹配 + 按艺术家匹配
+    // 2. 搜索歌曲：按标题匹配 + 按艺术家匹配 + 按歌词匹配
     const songByTitle = supabase.from('songs').select('*, albums(name)').eq('status', 'published').ilike('title', `%${kw}%`);
     const songByArtist = matchedArtistIds.length > 0
       ? supabase.from('songs').select('*, albums(name)').eq('status', 'published').overlaps('artist_ids', matchedArtistIds)
       : null;
+    const songByLrc = supabase.from('songs').select('*, albums(name)').eq('status', 'published').ilike('lrc_text', `%${kw}%`);
 
     // 3. 搜索专辑：按名称匹配 + 按艺术家匹配
     const albumByName = supabase.from('albums').select('*').ilike('name', `%${kw}%`);
@@ -60,24 +62,40 @@
       ? supabase.from('albums').select('*').overlaps('artist_ids', matchedArtistIds)
       : null;
 
-    // 4. 同时搜索歌词内容
-    const songByLrc = supabase.from('songs').select('*, albums(name)').eq('status', 'published').ilike('lrc_text', `%${kw}%`);
+    // 按固定顺序执行，避免 filter(Boolean) 后索引错位
+    const hasSongByArtist = songByArtist !== null;
+    const hasAlbumByArtist = albumByArtist !== null;
+    const queries = [];
+    const IDX_SONG_TITLE = queries.push(songByTitle) - 1;
+    const IDX_SONG_ARTIST = hasSongByArtist ? queries.push(songByArtist) - 1 : -1;
+    const IDX_SONG_LRC = queries.push(songByLrc) - 1;
+    const IDX_ALBUM_NAME = queries.push(albumByName) - 1;
+    const IDX_ALBUM_ARTIST = hasAlbumByArtist ? queries.push(albumByArtist) - 1 : -1;
 
-    const queries = [songByTitle, songByArtist, songByLrc, albumByName, albumByArtist].filter(Boolean);
     const results = await Promise.all(queries);
 
     // 合并歌曲结果并去重
     const songMap = new Map();
     const allArtistIds = new Set();
-    results[0].data.forEach(s => { songMap.set(s.id, s); (s.artist_ids || []).forEach(id => allArtistIds.add(id)); });
-    if (results[1]) results[1].data.forEach(s => { songMap.set(s.id, s); (s.artist_ids || []).forEach(id => allArtistIds.add(id)); });
-    if (results[2]) results[2].data.forEach(s => { songMap.set(s.id, s); (s.artist_ids || []).forEach(id => allArtistIds.add(id)); });
+    const addSongs = (res) => {
+      if (!res || !res.data) return;
+      res.data.forEach(s => {
+        songMap.set(s.id, s);
+        (s.artist_ids || []).forEach(id => allArtistIds.add(id));
+      });
+    };
+    addSongs(results[IDX_SONG_TITLE]);
+    if (hasSongByArtist) addSongs(results[IDX_SONG_ARTIST]);
+    addSongs(results[IDX_SONG_LRC]);
 
     // 合并专辑结果并去重
     const albumMap = new Map();
-    const albumIdx = songByArtist ? 4 : 3;
-    results[3].data.forEach(a => albumMap.set(a.id, a));
-    if (results[albumIdx]) results[albumIdx].data.forEach(a => albumMap.set(a.id, a));
+    const addAlbums = (res) => {
+      if (!res || !res.data) return;
+      res.data.forEach(a => albumMap.set(a.id, a));
+    };
+    addAlbums(results[IDX_ALBUM_NAME]);
+    if (hasAlbumByArtist) addAlbums(results[IDX_ALBUM_ARTIST]);
 
     // 获取艺术家名称映射
     const artistMap = {};

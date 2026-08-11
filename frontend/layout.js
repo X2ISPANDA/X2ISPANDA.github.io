@@ -237,14 +237,19 @@
       html += artists.map(artist => {
         const avatar = artist.avatar || LOGO_URL;
         const disambiguation = artist.disambiguation ? ` <span class="text-xs text-purple-500">(${artist.disambiguation})</span>` : '';
-        return `<a href="./artist.html?id=${artist.id}" onclick="closeSearchOverlay()" class="flex items-center gap-2 px-3 py-2 hover:bg-pink-50 rounded-lg transition"><img src="${avatar}" class="w-8 h-8 rounded-full bg-gray-100 object-contain" /><div class="text-sm font-medium text-gray-800 truncate">${highlight(artist.name, keyword)}${disambiguation}</div></a>`;
+        return `<a href="./artist.html?id=${artist.id}" onclick="closeSearchOverlay()" class="flex items-center gap-2 px-3 py-2 hover:bg-pink-50 rounded-lg transition"><img src="${avatar}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full bg-gray-100 object-cover" /><div class="text-sm font-medium text-gray-800 truncate">${highlight(artist.name, keyword)}${disambiguation}</div></a>`;
       }).join('') + '</div>';
     }
 
     const albums = data.albums || [];
     if (albums.length > 0) {
       html += `<div class="px-5 pt-3 pb-2 border-t"><span class="text-xs font-semibold text-gray-400 uppercase">💿 专辑</span> <span class="text-xs text-gray-400">(${albums.length})</span></div><div class="grid grid-cols-2 md:grid-cols-3 gap-1 px-3 pb-2">`;
-      html += albums.map(album => `<a href="./album.html?id=${album.id}" onclick="closeSearchOverlay()" class="flex items-center gap-2 px-3 py-2 hover:bg-pink-50 rounded-lg transition"><div class="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded flex items-center justify-center text-white text-xs shrink-0">💿</div><div class="text-sm font-medium text-gray-800 truncate">${highlight(album.name, keyword)}</div></a>`).join('') + '</div>';
+      html += albums.map(album => {
+        const coverHtml = album.cover
+          ? `<img src="${album.cover}" referrerpolicy="no-referrer" class="w-full h-full object-cover" />`
+          : `<span class="text-white text-xs shrink-0">💿</span>`;
+        return `<a href="./album.html?id=${album.id}" onclick="closeSearchOverlay()" class="flex items-center gap-2 px-3 py-2 hover:bg-pink-50 rounded-lg transition"><div class="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded flex items-center justify-center overflow-hidden shrink-0">${coverHtml}</div><div class="text-sm font-medium text-gray-800 truncate">${highlight(album.name, keyword)}</div></a>`;
+      }).join('') + '</div>';
     }
 
     const songs = data.songs || [];

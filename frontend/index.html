@@ -373,7 +373,7 @@
           }).join('');
           return `
             <a href="./artist.html?id=${artist.id}" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
-              <img src="${avatar}" class="w-8 h-8 rounded-full bg-gray-200" />
+              <img src="${avatar}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full bg-gray-200 object-cover" />
               <div class="flex-1">
                 <div class="text-sm font-medium text-gray-800">${highlight(artist.name, keyword)}${disambiguation}${types}</div>
               </div>
@@ -388,7 +388,9 @@
         html += `<div class="px-4 py-2 text-xs font-semibold text-gray-400 uppercase border-t">💿 专辑</div>`;
         html += albums.slice(0, 3).map(album => `
           <a href="./album.html?id=${album.id}" class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
-            <div class="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded flex items-center justify-center text-white text-xs">💿</div>
+            <div class="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded flex items-center justify-center overflow-hidden">
+              ${album.cover ? `<img src="${album.cover}" referrerpolicy="no-referrer" class="w-full h-full object-cover" />` : '<span class="text-white text-xs">💿</span>'}
+            </div>
             <div class="flex-1">
               <div class="text-sm font-medium text-gray-800">${highlight(album.name, keyword)}</div>
               <div class="text-xs text-gray-500">${album.year || ''}</div>
