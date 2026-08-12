@@ -134,7 +134,7 @@
           <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-8 text-white">
             <div class="flex items-center gap-6">
               <div class="w-32 h-32 bg-white/20 rounded-xl flex items-center justify-center text-6xl shadow-lg overflow-hidden">
-                ${cover ? `<img src="${cover}" class="w-full h-full rounded-xl ${cover === DEFAULT_LOGO ? 'object-contain p-2' : 'object-cover'}" />` : '💿'}
+                ${cover ? `<img src="${cover}" class="w-full h-full rounded-xl ${cover === DEFAULT_LOGO ? 'object-contain p-2' : 'object-cover'} clickable-img" onclick="event.stopPropagation(); openImgPreview(['${cover}'], 0)" />` : '💿'}
               </div>
               <div>
                 <h1 class="text-3xl font-bold mb-2">${data.name}</h1>

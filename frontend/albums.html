@@ -33,7 +33,7 @@
     async function initAlbums() {
       const grid = document.getElementById('albumsGrid');
       try {
-        const albums = await api.getAlbums(true);
+        const albums = await api.getAlbums();
         console.log('Albums loaded:', albums);
 
         if (!albums || albums.length === 0) {
@@ -48,18 +48,16 @@
 
         grid.innerHTML = albums.map(album => {
           const cover = album.cover || DEFAULT_LOGO;
-          const songCount = album.song_count || 0;
 
           return `
             <a href="./album.html?id=${album.id}" class="bg-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition text-center group">
               <div class="relative mx-auto mb-3 w-24 h-24">
-                <img src="${cover}" alt="${album.name}" class="w-24 h-24 rounded-xl mx-auto bg-gray-100 object-contain group-hover:scale-105 transition shadow-md" />
+                <img src="${cover}" alt="${album.name}" class="w-24 h-24 rounded-xl mx-auto bg-gray-100 object-contain group-hover:scale-105 transition shadow-md clickable-img" onclick="event.preventDefault(); event.stopPropagation(); openImgPreview(['${cover}'], 0)" />
               </div>
               <div class="font-bold text-gray-800 truncate text-lg">${album.name}</div>
               ${album.artist_name ? `<div class="text-sm text-gray-500 mt-0.5 truncate">${album.artist_name}</div>` : ''}
               <div class="flex items-center justify-center gap-3 mt-2 text-sm text-gray-500">
                 ${album.year ? `<span>📅 ${album.year}</span>` : ''}
-                <span>🎵 ${songCount} 首</span>
               </div>
             </a>
           `;

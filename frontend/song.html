@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -200,7 +200,7 @@
         <div class="gradient-header rounded-3xl p-8 text-white shadow-2xl mb-6">
           <div class="flex items-center gap-6 flex-col md:flex-row">
             <div class="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center shadow-xl flex-shrink-0 overflow-hidden">
-              ${cover ? `<img src="${cover}" class="w-full h-full rounded-2xl ${cover === DEFAULT_LOGO ? 'object-contain p-2' : 'object-cover'}" />` : '💿'}
+              ${cover ? `<img src="${cover}" class="w-full h-full rounded-2xl ${cover === DEFAULT_LOGO ? 'object-contain p-2' : 'object-cover'} clickable-img" onclick="openImgPreview(['${cover}'], 0)" />` : '💿'}
             </div>
             <div class="flex-1 text-center md:text-left">
               <h1 class="text-3xl md:text-4xl font-bold mb-2">${currentSong.title}</h1>

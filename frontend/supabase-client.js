@@ -30,28 +30,6 @@
     }, 200);
   }
 
-  // 统计某艺术家的总作品数（演唱+作词+作曲+编曲）
-  async function getArtistWorkCount(artistId) {
-    const { data, error } = await supabase
-      .from('songs')
-      .select('id, artist_ids, lyricist, composer, arranger')
-      .eq('status', 'published');
-    if (error) return 0;
-    // 使用 split 精确匹配ID，避免子串误匹配
-    const containsId = (field, targetId) => {
-      if (!field) return false;
-      return field.split(',').map(x => x.trim()).includes(targetId);
-    };
-    return (data || []).filter(s => {
-      // artist_ids 数组包含该艺术家
-      if (s.artist_ids && Array.isArray(s.artist_ids) && s.artist_ids.includes(artistId)) return true;
-      if (containsId(s.lyricist, artistId)) return true;
-      if (containsId(s.composer, artistId)) return true;
-      if (containsId(s.arranger, artistId)) return true;
-      return false;
-    }).length;
-  }
-
   // 构造搜索结果（本地模糊搜索替代后端搜索 API）
   async function searchAll(keyword) {
     const kw = keyword.trim().toLowerCase();
@@ -152,29 +130,27 @@
     get supabase() { return supabase; },
     waitForClient,
 
-    // 获取所有艺术家，可选获取作品数
-    async getArtists(includeCount = false) {
-      const { data, error } = await supabase
-        .from('artists')
-        .select('*')
-        .order('name');
-      if (error) throw error;
+    // 获取艺术家（带作品数时使用数据库RPC，避免全量拉取）
+    async getArtists(options = {}) {
+      const includeCount = options.includeCount || false;
+      const limit = options.limit || null;
 
-      if (includeCount && data.length > 0) {
-        const counts = await Promise.all(data.map(a => getArtistWorkCount(a.id)));
-        const artists = data.map((a, i) => ({ ...a, song_count: counts[i] }));
-        // 排序：sort>0 的置顶（数字越小越靠前），sort=0 的按作品数降序
-        artists.sort((a, b) => {
-          const sa = a.sort || 0;
-          const sb = b.sort || 0;
-          if (sa > 0 && sb > 0) return sa - sb;       // 都是置顶，按sort升序
-          if (sa > 0) return -1;                        // a置顶，排前面
-          if (sb > 0) return 1;                         // b置顶，排前面
-          return b.song_count - a.song_count || a.name.localeCompare(b.name);  // 都不置顶，按作品数降序
-        });
-        return artists;
+      if (includeCount && limit) {
+        // 使用数据库RPC函数，GROUP BY + COUNT，只返回limit条
+        const { data, error } = await supabase.rpc('get_top_artists', { limit_count: limit });
+        if (error) throw error;
+        return data || [];
       }
-      return data;
+
+      // 不带count的简单查询
+      let query = supabase
+        .from('artists')
+        .select('id, name, sort, avatar, types, disambiguation, is_show, aliases')
+        .order('name');
+      if (limit) query = query.limit(limit);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
     },
 
     // 获取单个艺术家
@@ -184,37 +160,98 @@
       return data;
     },
 
-    // 获取艺术家的作品
+    // 获取艺术家的歌曲（数据库精确查询，不再全量拉取）
     async getArtistSongs(artistId) {
-      // 先获取所有已发布歌曲
-      const { data, error } = await supabase
+      // 查询1：artist_ids 数组包含该艺术家的歌曲（演唱）
+      const { data: singData, error: err1 } = await supabase
         .from('songs')
         .select('*, albums(name, year)')
         .eq('status', 'published')
+        .overlaps('artist_ids', [artistId])
         .order('created_at', { ascending: false });
-      if (error) throw error;
+      if (err1) throw err1;
 
-      // 过滤出包含该艺术家的歌曲（artist_ids 数组或 lyricist/composer/arranger 字段）
-      const containsId = (field, targetId) => {
-        if (!field) return false;
-        return field.split(',').map(x => x.trim()).includes(targetId);
-      };
+      // 查询2：作词/作曲/编曲包含该艺术家的歌曲
+      const { data: workData, error: err2 } = await supabase
+        .from('songs')
+        .select('*, albums(name, year)')
+        .eq('status', 'published')
+        .or(`lyricist.ilike.%${artistId}%,composer.ilike.%${artistId}%,arranger.ilike.%${artistId}%`)
+        .order('created_at', { ascending: false });
+      if (err2) throw err2;
 
-      const filtered = (data || []).filter(s => {
-        // artist_ids 数组匹配
-        if (s.artist_ids && Array.isArray(s.artist_ids) && s.artist_ids.includes(artistId)) return true;
-        // 其他贡献者字段匹配
-        if (containsId(s.lyricist, artistId)) return true;
-        if (containsId(s.composer, artistId)) return true;
-        if (containsId(s.arranger, artistId)) return true;
-        return false;
+      // 合并去重
+      const songMap = new Map();
+      [...(singData || []), ...(workData || [])].forEach(s => {
+        if (!songMap.has(s.id)) songMap.set(s.id, s);
       });
 
-      return filtered.map(s => ({
-        ...s,
-        album_name: s.albums?.name || '',
-        album_year: s.albums?.year || ''
-      }));
+      // 收集所有 artist_ids 用于解析名称
+      const allArtistIds = new Set();
+      Array.from(songMap.values()).forEach(s => {
+        (s.artist_ids || []).forEach(id => allArtistIds.add(id));
+      });
+
+      // 批量查询艺术家名称
+      const artistMap = {};
+      if (allArtistIds.size > 0) {
+        const { data: artistsData } = await supabase
+          .from('artists')
+          .select('id, name')
+          .in('id', Array.from(allArtistIds));
+        (artistsData || []).forEach(ar => {
+          artistMap[ar.id] = ar.name;
+        });
+      }
+
+      return Array.from(songMap.values()).map(s => {
+        const ids = s.artist_ids || [];
+        const names = ids.map(id => artistMap[id] || id).filter(Boolean);
+        return {
+          ...s,
+          artist_name: names.join(' / ') || '',
+          album_name: s.albums?.name || '',
+          album_year: s.albums?.year || ''
+        };
+      });
+    },
+
+    // 获取艺术家的专辑（数据库精确查询）
+    async getArtistAlbums(artistId) {
+      const { data, error } = await supabase
+        .from('albums')
+        .select('*')
+        .overlaps('artist_ids', [artistId])
+        .order('name');
+      if (error) throw error;
+
+      // 收集所有 artist_ids
+      const allArtistIds = new Set();
+      (data || []).forEach(a => {
+        (a.artist_ids || []).forEach(id => allArtistIds.add(id));
+      });
+
+      // 批量查询艺术家信息
+      const artistMap = {};
+      if (allArtistIds.size > 0) {
+        const { data: artistsData } = await supabase
+          .from('artists')
+          .select('id, name')
+          .in('id', Array.from(allArtistIds));
+        (artistsData || []).forEach(ar => {
+          artistMap[ar.id] = ar;
+        });
+      }
+
+      return (data || []).map(a => {
+        const ids = a.artist_ids || [];
+        const names = ids.map(id => artistMap[id]?.name || '').filter(Boolean);
+        return {
+          ...a,
+          artist_name: names.join(' / ') || '未知',
+          artists: ids.map(id => artistMap[id]).filter(Boolean)
+        };
+      });
     },
 
     // 获取所有专辑
@@ -231,40 +268,43 @@
         (a.artist_ids || []).forEach(id => allArtistIds.add(id));
       });
 
-      // 批量查询艺术家信息
+      // 批量查询艺术家信息（1次请求）
       const artistMap = {};
       if (allArtistIds.size > 0) {
         const { data: artistsData } = await supabase
           .from('artists')
-          .select('id, name, is_show')
+          .select('id, name')
           .in('id', Array.from(allArtistIds));
         (artistsData || []).forEach(ar => {
           artistMap[ar.id] = ar;
         });
       }
 
-      const albums = (data || []).map(a => {
+      // 批量查询所有专辑的歌曲数（1次请求，替代N次）
+      const countMap = {};
+      if (includeCount && data && data.length > 0) {
+        const albumIds = data.map(a => a.id);
+        const { data: countData } = await supabase
+          .from('songs')
+          .select('album_id')
+          .in('album_id', albumIds)
+          .eq('status', 'published');
+        (countData || []).forEach(s => {
+          if (s.album_id) countMap[s.album_id] = (countMap[s.album_id] || 0) + 1;
+        });
+      }
+
+      return (data || []).map(a => {
         const ids = a.artist_ids || [];
         const names = ids.map(id => artistMap[id]?.name || '').filter(Boolean);
-        return {
+        const result = {
           ...a,
           artist_name: names.join(' / ') || '未知',
           artists: ids.map(id => artistMap[id]).filter(Boolean)
         };
+        if (includeCount) result.song_count = countMap[a.id] || 0;
+        return result;
       });
-
-      if (includeCount && albums.length > 0) {
-        const counts = await Promise.all(albums.map(a =>
-          supabase
-            .from('songs')
-            .select('id', { count: 'exact' })
-            .eq('album_id', a.id)
-            .eq('status', 'published')
-            .then(r => r.count || 0)
-        ));
-        return albums.map((a, i) => ({ ...a, song_count: counts[i] }));
-      }
-      return albums;
     },
 
     // 获取单个专辑
@@ -334,12 +374,14 @@
     },
 
     // 获取所有歌曲（不含 lrc_text，用于列表展示）
-    async getSongs() {
-      const { data, error } = await supabase
+    async getSongs(limit) {
+      let query = supabase
         .from('songs')
         .select('id, title, artist_ids, album_id, lyricist, composer, arranger, duration, status, is_hidden, created_at, albums(name)')
         .eq('status', 'published')
         .order('created_at', { ascending: false });
+      if (limit) query = query.limit(limit);
+      const { data, error } = await query;
       if (error) throw error;
 
       // 批量查询艺术家信息
@@ -516,57 +558,21 @@
 
     // ============= 贡献者 (contributors) =============
 
-    // 获取所有贡献者
+    // 获取贡献者（带歌曲数时使用数据库RPC，避免全量拉取）
     async getContributors(options = {}) {
-      let query = supabase
-        .from('contributors')
-        .select('id, name, avatar, bio, public_bio, contact_value, public_contact, is_owner, created_at, sort, tags');
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      // 动态计算每个贡献者的歌曲数（从 songs 表按 contributor_id 统计）
-      if (data && data.length > 0) {
-        // 一次性查询所有贡献者的歌曲数
-        const contributorIds = data.map(c => c.id);
-        const { data: songsData } = await supabase
-          .from('songs')
-          .select('contributor_id')
-          .in('contributor_id', contributorIds)
-          .eq('status', 'published');
-        
-        // 统计每个贡献者的歌曲数
-        const songCountMap = {};
-        (songsData || []).forEach(s => {
-          if (s.contributor_id) {
-            songCountMap[s.contributor_id] = (songCountMap[s.contributor_id] || 0) + 1;
-          }
-        });
-        
-        // 把歌曲数合并到贡献者数据中
-        data.forEach(c => {
-          c.song_count = songCountMap[c.id] || 0;
-        });
-        
-        // 排序逻辑：
-        // 1. sort > 0 的置顶贡献者，按 sort 值升序（越小越靠前）
-        // 2. sort = 0 的普通贡献者，按歌曲数降序，歌曲数相同按创建时间
-        data.sort((a, b) => {
-          const aPinned = a.sort > 0;
-          const bPinned = b.sort > 0;
-          
-          if (aPinned && bPinned) {
-            return a.sort - b.sort;
-          }
-          if (aPinned) return -1;
-          if (bPinned) return 1;
-          
-          // 都不是置顶，按歌曲数降序
-          if (b.song_count !== a.song_count) return b.song_count - a.song_count;
-          // 歌曲数相同，按创建时间
-          return new Date(a.created_at) - new Date(b.created_at);
-        });
+      if (options.limit) {
+        // 使用数据库RPC函数，GROUP BY + COUNT，只返回limit条
+        const { data, error } = await supabase.rpc('get_top_contributors', { limit_count: options.limit });
+        if (error) throw error;
+        return data || [];
       }
-      
+
+      // 无limit时走普通查询（用于列表页等场景）
+      const { data, error } = await supabase
+        .from('contributors')
+        .select('id, name, avatar, bio, public_bio, contact_value, public_contact, is_owner, created_at, sort, tags')
+        .order('sort');
+      if (error) throw error;
       return data || [];
     },
 

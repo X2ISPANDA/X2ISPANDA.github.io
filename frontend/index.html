@@ -171,7 +171,6 @@
       <div class="lg:col-span-2">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-2xl font-bold text-gray-800">🆕 最新歌词</h2>
-          <a href="./search.html" class="text-pink-600 hover:underline">查看全部 →</a>
         </div>
         <div id="songsList" class="bg-white rounded-2xl shadow-sm divide-y"></div>
       </div>
@@ -451,14 +450,13 @@
       initSearch();
 
       try {
-        // 1) 加载艺术家（带作品数）
-        const artists = await api.getArtists(true);
+        // 1) 加载艺术家（数据库RPC：按sort置顶+作品数排序，只取6个）
+        const artists = await api.getArtists({ includeCount: true, limit: 6 });
         const artistsGrid = document.getElementById('artistsGrid');
-        const filteredArtists = artists.slice(0, 6);
-        if (filteredArtists.length === 0) {
+        if (artists.length === 0) {
           artistsGrid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-400">暂无艺术家</div>';
         } else {
-          filteredArtists.forEach(artist => {
+          artists.forEach(artist => {
             const avatar = artist.avatar || DEFAULT_LOGO;
             const disambiguation = artist.disambiguation ? `<div class="text-xs text-purple-500 truncate">${artist.disambiguation}</div>` : '';
             const types = (artist.types || ['singer']).map(t => {
@@ -477,10 +475,9 @@
           });
         }
 
-        // 2) 加载最新歌曲 (左栏)
-        const songs = await api.getSongs();
+        // 2) 加载最新歌曲 (左栏，只取10首)
+        const recentSongs = await api.getSongs(10);
         const songsList = document.getElementById('songsList');
-        const recentSongs = songs.slice(0, 10);
         if (recentSongs.length === 0) {
           songsList.innerHTML = '<div class="p-8 text-center text-gray-400">暂无歌词</div>';
         } else {
@@ -536,14 +533,14 @@
           document.getElementById('articlesList').innerHTML = '<div class="text-xs text-gray-400 text-center py-4">加载文章失败</div>';
         }
 
-        // 4) 加载优秀贡献者 (右栏下)
+        // 4) 加载优秀贡献者 (右栏下，只取9个)
         try {
-          const contributors = await api.getContributors();
+          const contributors = await api.getContributors({ limit: 9 });
           const fcList = document.getElementById('featuredContributors');
           if (!contributors || contributors.length === 0) {
             fcList.innerHTML = `<div class="text-sm text-gray-400 text-center py-4">暂无贡献者，<a href="./contributors.html" class="text-pink-600 hover:underline">全部名单 →</a></div>`;
           } else {
-            fcList.innerHTML = contributors.slice(0, 9).map(c => {
+            fcList.innerHTML = contributors.map(c => {
               const avatar = c.avatar || DEFAULT_LOGO;
               return `
                 <a href="./contributor.html?id=${c.id}" class="flex flex-col items-center p-2 rounded-lg hover:bg-pink-50/50 transition text-center">

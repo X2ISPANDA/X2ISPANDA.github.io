@@ -50,7 +50,7 @@
     { href: './artists.html', label: '艺术家库', match: ['artists.html', 'artist.html'] },
     { href: './albums.html', label: '专辑库', match: ['albums.html', 'album.html'] },
     { href: './contributors.html', label: '贡献者', match: ['contributors.html', 'contributor.html'] },
-    { href: '#', label: '搜索', match: ['search.html'], onclick: 'openSearchOverlay(event)' },
+    { href: '#', label: '搜索', onclick: 'openSearchOverlay(event)' },
     { href: './posts.html', label: '逼逼', match: ['posts.html', 'post.html'] },
     { href: './submit.html', label: '我要投稿', match: ['submit.html'] },
     { href: './support.html', label: '赞助', match: ['support.html'] },
@@ -59,6 +59,7 @@
   ];
 
   function isNavActive(item) {
+    if (!item.match) return false;
     if (item.onclick) return item.match.includes(filename);
     if (item.active) return item.match.includes(filename) && item.active();
     return item.match.includes(filename);
@@ -277,4 +278,131 @@
   busuanziScript.async = true;
   busuanziScript.src = '//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js';
   document.body.appendChild(busuanziScript);
+
+  // ============ 9. 图片预览功能（全局共享） ============
+  const imgPreviewStyle = document.createElement('style');
+  imgPreviewStyle.textContent = `
+    .img-preview {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .img-preview.active { display: flex; }
+    .img-preview img {
+      max-width: 90%;
+      max-height: 90vh;
+      object-fit: contain;
+      transition: transform 0.3s ease;
+      cursor: zoom-in;
+    }
+    .img-preview img.zoomed { cursor: zoom-out; }
+    .img-preview-btn {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      transition: background 0.2s;
+    }
+    .img-preview-btn:hover { background: rgba(255,255,255,0.3); }
+    .img-preview-close { top: 20px; right: 20px; }
+    .img-preview-prev { left: 20px; top: 50%; transform: translateY(-50%); }
+    .img-preview-next { right: 20px; top: 50%; transform: translateY(-50%); }
+    .img-preview-counter {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 14px;
+      background: rgba(0,0,0,0.5);
+      padding: 6px 16px;
+      border-radius: 20px;
+    }
+    .clickable-img {
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .clickable-img:hover { opacity: 0.85; }
+  `;
+  document.head.appendChild(imgPreviewStyle);
+
+  // 注入预览模态框
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="imgPreview" class="img-preview">
+      <button class="img-preview-btn img-preview-close" onclick="closeImgPreview()">✕</button>
+      <button class="img-preview-btn img-preview-prev" onclick="prevImg()">‹</button>
+      <img id="previewImg" src="" alt="" onclick="toggleZoom(this)" />
+      <button class="img-preview-btn img-preview-next" onclick="nextImg()">›</button>
+      <div id="previewCounter" class="img-preview-counter"></div>
+    </div>
+  `);
+
+  let previewImages = [];
+  let previewIndex = 0;
+  let previewScale = 1;
+
+  window.openImgPreview = function (images, index) {
+    if (!images || images.length === 0) return;
+    previewImages = images;
+    previewIndex = index || 0;
+    previewScale = 1;
+    updatePreviewImg();
+    document.getElementById('imgPreview').classList.add('active');
+  };
+
+  window.closeImgPreview = function () {
+    document.getElementById('imgPreview').classList.remove('active');
+    document.getElementById('previewImg').classList.remove('zoomed');
+    previewScale = 1;
+  };
+
+  function updatePreviewImg() {
+    const img = document.getElementById('previewImg');
+    img.src = previewImages[previewIndex];
+    img.style.transform = 'scale(' + previewScale + ')';
+    document.getElementById('previewCounter').textContent = (previewIndex + 1) + ' / ' + previewImages.length;
+  }
+
+  window.prevImg = function () {
+    if (previewIndex > 0) { previewIndex--; previewScale = 1; updatePreviewImg(); }
+  };
+
+  window.nextImg = function () {
+    if (previewIndex < previewImages.length - 1) { previewIndex++; previewScale = 1; updatePreviewImg(); }
+  };
+
+  window.toggleZoom = function (imgEl) {
+    if (previewScale === 1) { previewScale = 2; imgEl.classList.add('zoomed'); }
+    else { previewScale = 1; imgEl.classList.remove('zoomed'); }
+    imgEl.style.transform = 'scale(' + previewScale + ')';
+  };
+
+  document.addEventListener('keydown', function (e) {
+    var preview = document.getElementById('imgPreview');
+    if (preview && preview.classList.contains('active')) {
+      if (e.key === 'Escape') closeImgPreview();
+      if (e.key === 'ArrowLeft') prevImg();
+      if (e.key === 'ArrowRight') nextImg();
+    }
+  });
+
+  // 点击背景关闭
+  document.addEventListener('click', function (e) {
+    var preview = document.getElementById('imgPreview');
+    if (preview && preview.classList.contains('active') && e.target.id === 'imgPreview') {
+      closeImgPreview();
+    }
+  });
 })();
