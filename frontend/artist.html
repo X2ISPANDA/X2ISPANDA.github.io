@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -130,6 +130,18 @@
         return { ...s, contributions };
       });
       artistData.albums = artistAlbums;
+      
+      // 从已加载的歌曲数据计算每个专辑的歌曲数
+      const albumSongCountMap = {};
+      artistData.songs.forEach(s => {
+        if (s.album_id) {
+          albumSongCountMap[s.album_id] = (albumSongCountMap[s.album_id] || 0) + 1;
+        }
+      });
+      artistData.albums = artistAlbums.map(a => ({
+        ...a,
+        song_count: albumSongCountMap[a.id] || 0
+      }));
       
       renderArtistHeader();
       renderTabs();
