@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -94,11 +94,26 @@
     }
     .tip-box h1, .tip-box h2, .tip-box h3 { margin-top: 0; }
     .tip-box p { margin: 0; }
-    /* 三语歌词颜色标注 */
-    .p.blue { color: #2563eb; }
-    .p.red { color: #dc2626; }
-    .p.yellow { color: #ca8a04; }
-    .p.black { color: #1f2937; font-weight: bold; }
+
+    /* Twikoo 贡献者/站长徽章 */
+    .tk-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 10px;
+      line-height: 16px;
+      vertical-align: middle;
+    }
+    .tk-badge-owner {
+      background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+      color: #fff;
+    }
+    .tk-badge-contributor {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
   </style>
 </head>
 <body class="bg-gray-100">
@@ -156,9 +171,21 @@
         }
 
         const artistIds = currentSong.artist_ids || [];
-        const allArtists = await api.getArtists();
+
+        // 收集所有需要的artist IDs（包括作词/作曲/编曲引用的ID）
+        const neededIds = new Set(artistIds);
+        ['lyricist', 'composer', 'arranger'].forEach(field => {
+          if (currentSong[field]) {
+            currentSong[field].split(',').forEach(id => {
+              const trimmed = id.trim();
+              if (trimmed) neededIds.add(trimmed);
+            });
+          }
+        });
+        // 只查询需要的艺术家，不拉全表
+        const artistsData = await api.getArtistsByIds(Array.from(neededIds));
         const artistMap = {};
-        allArtists.forEach(a => { artistMap[a.id] = a; });
+        artistsData.forEach(a => { artistMap[a.id] = a; });
 
         // 主艺术家（用于头像显示）
         const mainArtist = artistIds.length > 0 ? artistMap[artistIds[0]] : null;
@@ -317,21 +344,10 @@
         <!-- Related Songs -->
         <div id="relatedSongs"></div>
 
-        <!-- Comments -->
+        <!-- Comments (Twikoo) -->
         <div class="bg-white rounded-2xl shadow-sm p-6 mt-6">
           <h3 class="text-xl font-bold mb-4">💬 评论</h3>
-          <div id="commentForm" class="mb-6">
-            <div class="flex gap-2 mb-3">
-              <input type="text" id="commentName" placeholder="你的昵称" class="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" />
-              <input type="email" id="commentEmail" placeholder="邮箱（可选）" class="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" />
-            </div>
-            <textarea id="commentContent" rows="3" placeholder="写下你的评论..." class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"></textarea>
-            <div class="flex justify-between items-center mt-2">
-              <span class="text-xs text-gray-400">请文明发言，理性讨论</span>
-              <button id="submitComment" class="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition">发表评论</button>
-            </div>
-          </div>
-          <div id="commentsList" class="space-y-4"></div>
+          <div id="tcomment"></div>
         </div>
       `;
 
@@ -392,72 +408,114 @@
       // 相关歌曲
       renderRelatedSongs(currentSong, mainArtist, album);
 
-      // 评论系统
-      loadComments(songId);
-
-      document.getElementById('submitComment').addEventListener('click', async () => {
-        const name = document.getElementById('commentName').value.trim();
-        const email = document.getElementById('commentEmail').value.trim();
-        const content = document.getElementById('commentContent').value.trim();
-
-        if (!name || !content) {
-          alert('请填写昵称和评论内容');
-          return;
-        }
-
-        try {
-          await api.addComment(songId, content, name);
-          document.getElementById('commentName').value = '';
-          document.getElementById('commentEmail').value = '';
-          document.getElementById('commentContent').value = '';
-          loadComments(songId);
-        } catch (err) {
-          alert('发表失败: ' + err.message);
-        }
-      });
+      // 评论系统初始化
+      initTwikoo(songId);
       } catch (err) {
         console.error('加载歌曲失败:', err);
         alert('加载失败，请稍后重试');
       }
     }
 
-    async function loadComments(songId) {
-      const list = document.getElementById('commentsList');
-      list.innerHTML = '<div class="text-center text-gray-400 py-4">加载评论中...</div>';
+    // ============= Twikoo 评论系统 =============
+    const TWIKOO_ENV_ID = 'https://lrcshare.netlify.app/.netlify/functions/twikoo';
 
-      try {
-        const comments = await api.getComments(songId);
+    function initTwikoo(songId) {
+      const path = `/song.html?id=${songId}`;
 
-        if (comments.length === 0) {
-          list.innerHTML = '<div class="text-center text-gray-400 py-4">暂无评论，来抢沙发吧~</div>';
+      // 加载 Twikoo 脚本
+      if (typeof twikoo !== 'undefined') {
+        twikoo.init({
+          envId: TWIKOO_ENV_ID,
+          el: '#tcomment',
+          path: path,
+          lang: 'zh-CN',
+          onComment: () => {
+            // 评论渲染完成后，添加贡献者/站长徽章
+            addContributorBadges();
+          }
+        });
+      } else {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/twikoo@1.7.9/dist/twikoo.all.min.js';
+        script.onload = () => {
+          twikoo.init({
+            envId: TWIKOO_ENV_ID,
+            el: '#tcomment',
+            path: path,
+            lang: 'zh-CN',
+            onComment: () => {
+              addContributorBadges();
+            }
+          });
+        };
+        document.head.appendChild(script);
+      }
+
+      // 监听 Twikoo 动态渲染完成
+      const observer = new MutationObserver(() => {
+        addContributorBadges();
+      });
+      setTimeout(() => {
+        const container = document.getElementById('tcomment');
+        if (container) observer.observe(container, { childList: true, subtree: true });
+      }, 2000);
+    }
+
+    // 为贡献者和站长添加自定义徽章
+    async function addContributorBadges() {
+      // 获取贡献者列表（缓存10分钟）
+      let contributors = [];
+      const cached = localStorage.getItem('contributors_cache');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed.time && Date.now() - parsed.time < 600000) {
+            contributors = parsed.data;
+          }
+        } catch (e) {}
+      }
+      if (contributors.length === 0) {
+        try {
+          const config = window.LRCSHAPE_CONFIG;
+          const res = await fetch(`${config.SUPABASE_URL}/rest/v1/contributors?select=id,name,is_owner`, {
+            headers: {
+              'apikey': config.SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${config.SUPABASE_ANON_KEY}`
+            }
+          });
+          if (res.ok) {
+            contributors = await res.json();
+            localStorage.setItem('contributors_cache', JSON.stringify({ time: Date.now(), data: contributors }));
+          }
+        } catch (e) {
           return;
         }
-
-        list.innerHTML = comments.map(c => `
-          <div class="border-b pb-4">
-            <div class="flex items-center gap-2 mb-1">
-              <div class="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-sm">${escapeHtml((c.author || c.user_name || '匿').charAt(0))}</div>
-              <span class="font-medium text-gray-800">${escapeHtml(c.author || c.user_name || '匿名')}</span>
-              <span class="text-xs text-gray-400">${formatTime(c.created_at)}</span>
-            </div>
-            <div class="text-gray-700 pl-10">${escapeHtml(c.content)}</div>
-          </div>
-        `).join('');
-      } catch (err) {
-        list.innerHTML = '<div class="text-center text-gray-400 py-4">加载评论失败</div>';
       }
+
+      // 为每条评论添加徽章
+      const ownerNames = contributors.filter(c => c.is_owner).map(c => c.name);
+      const contributorNames = contributors.filter(c => !c.is_owner).map(c => c.name);
+
+      document.querySelectorAll('#tcomment .tk-content .tk-head .tk-user-info .tk-nick').forEach(nick => {
+        if (nick.dataset.badgeAdded) return;
+        const name = nick.textContent.trim();
+        let badge = '';
+        if (ownerNames.includes(name)) {
+          badge = '<span class="tk-badge tk-badge-owner">站长</span>';
+        } else if (contributorNames.includes(name)) {
+          badge = '<span class="tk-badge tk-badge-contributor">贡献者</span>';
+        }
+        if (badge) {
+          nick.insertAdjacentHTML('afterend', badge);
+          nick.dataset.badgeAdded = 'true';
+        }
+      });
     }
 
     function escapeHtml(text) {
       const div = document.createElement('div');
-      div.textContent = text;
+      div.textContent = text || '';
       return div.innerHTML;
-    }
-
-    function formatTime(timeStr) {
-      const d = new Date(timeStr);
-      const pad = n => String(n).padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
     function renderLrcLines(lrcText) {
@@ -607,21 +665,17 @@
       if (songArtistIds.length === 0) return;
 
       try {
-        const allSongs = await api.getSongs();
-        const sameArtistSongs = allSongs.filter(s => {
-          const ids = s.artist_ids || [];
-          return ids.some(id => songArtistIds.includes(id)) && s.id !== song.id;
-        });
+        // 只查询同歌手的歌曲，不拉全表
+        const sameArtistSongs = await api.getRelatedSongs(songArtistIds, song.id);
         if (sameArtistSongs.length === 0) {
           container.innerHTML = '';
           return;
         }
 
-        const albumsData = await api.getAlbums();
+        // 歌曲已包含 albums(name) join，直接用
         const grouped = {};
         sameArtistSongs.forEach(s => {
-          const albumItem = albumsData.find(a => a.id === s.album_id);
-          const albumName = albumItem ? albumItem.name : '其他';
+          const albumName = s.albums?.name || '其他';
           if (!grouped[albumName]) grouped[albumName] = [];
           grouped[albumName].push(s);
         });

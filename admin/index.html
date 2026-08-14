@@ -1958,6 +1958,12 @@
             <span style="color: #909399; font-size: 12px;">开启后简介将在贡献者主页展示</span>
           </div>
         </el-form-item>
+        <el-form-item label="口令">
+          <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+            <el-input v-model="contributorForm.password" placeholder="留空不修改；设置后贡献者用此口令验证身份" show-password />
+            <span style="color: #909399; font-size: 12px; white-space: nowrap;">用于评论区身份验证</span>
+          </div>
+        </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="contributorForm.sort" :min="0" :step="1" style="width:100%" />
         </el-form-item>
@@ -2230,7 +2236,7 @@
         const editingContributor = ref(false);
         const contributorForm = reactive({
           id: '', name: '', avatar: '', bio: '', contact_types: [], contact_value: {},
-          location: '', tags: [], is_owner: false,
+          location: '', tags: [], is_owner: false, password: '',
           sort: 0, public_contact: false, public_bio: true
         });
 
@@ -4343,6 +4349,23 @@
             for (const entry of entries) {
               await db.from('settings').upsert(entry, { onConflict: 'key' });
             }
+
+            // 同步 SMTP 到服务器本地配置文件（供评论通知使用）
+            const s = settings.value;
+            if (s.smtp_host && s.smtp_user && s.smtp_pass) {
+              await fetch('/api/admin/smtp-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  host: s.smtp_host,
+                  port: parseInt(s.smtp_port) || 465,
+                  user: s.smtp_user,
+                  pass: s.smtp_pass,
+                  admin_email: s.admin_email || ''
+                })
+              });
+            }
+
             ElementPlus.ElMessage.success('设置已保存');
           } catch (err) {
             ElementPlus.ElMessage.error('保存失败: ' + err.message);
@@ -4458,6 +4481,13 @@
 
         // ============ 文章 ============
         const genId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+        const adminSha256 = async (str) => {
+          const encoder = new TextEncoder();
+          const data = encoder.encode(str);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        };
         const slugify = (s) => (s || '').toString().trim().toLowerCase().replace(/[^\w\u4e00-\u9fa5-]+/g, '-').replace(/^-+|-+$/g, '');
 
         const openNewArticle = () => {
@@ -4579,7 +4609,7 @@
           editingContributor.value = false;
           Object.assign(contributorForm, {
             id: '', name: '', avatar: '', bio: '', contact_types: [], contact_value: {},
-            location: '', tags: [], is_owner: false,
+            location: '', tags: [], is_owner: false, password: '',
             sort: 0, public_contact: false, public_bio: true,
             created_at: new Date().toISOString()
           });
@@ -4607,13 +4637,20 @@
             tags: [...(row.tags || [])], is_owner: !!row.is_owner,
             sort: row.sort || 0,
             public_contact: !!row.public_contact,
-            public_bio: row.public_bio !== false
+            public_bio: row.public_bio !== false,
+            password: ''  // 编辑时不显示原密码哈希，留空则不修改
           });
           showContributorDialog.value = true;
         };
         const saveContributor = async () => {
           if (!contributorForm.name || !contributorForm.name.trim()) { ElementPlus.ElMessage.warning('请输入贡献者名称'); return; }
           try {
+            // 密码哈希处理（留空则不修改）
+            let verifyCodeHash = null;
+            if (contributorForm.password && contributorForm.password.trim()) {
+              verifyCodeHash = await adminSha256(contributorForm.password.trim());
+            }
+
             const payload = {
               name: contributorForm.name.trim(),
               avatar: contributorForm.avatar || '',
@@ -4627,6 +4664,11 @@
               public_contact: !!contributorForm.public_contact,
               public_bio: contributorForm.public_bio !== false
             };
+
+            // 只有设置了新口令才更新 verify_code_hash
+            if (verifyCodeHash) {
+              payload.verify_code_hash = verifyCodeHash;
+            }
             if (editingContributor.value) {
               await api.update('contributors', contributorForm.id, payload);
             } else {

@@ -160,6 +160,39 @@
       return data;
     },
 
+    // 按ID批量获取艺术家（只查需要的，不拉全表）
+    async getArtistsByIds(ids) {
+      if (!ids || ids.length === 0) return [];
+      const { data, error } = await supabase
+        .from('artists')
+        .select('id, name, sort, avatar, types, disambiguation, is_show, aliases')
+        .in('id', ids);
+      if (error) throw error;
+      return data || [];
+    },
+
+    // 获取同歌手的其他歌曲（只查相关歌曲，不拉全表）
+    async getRelatedSongs(artistIds, excludeSongId) {
+      if (!artistIds || artistIds.length === 0) return [];
+      // 对每个artistId查询包含该artist的歌曲，然后去重
+      const queries = artistIds.map(id =>
+        supabase.from('songs')
+          .select('id, title, artist_ids, album_id, duration, is_hidden, created_at, albums(name)')
+          .eq('status', 'published')
+          .contains('artist_ids', [id])
+          .neq('id', excludeSongId)
+      );
+      const results = await Promise.all(queries);
+      const seen = new Set();
+      const songs = [];
+      results.forEach(r => {
+        (r.data || []).forEach(s => {
+          if (!seen.has(s.id)) { seen.add(s.id); songs.push(s); }
+        });
+      });
+      return songs;
+    },
+
     // 获取艺术家的歌曲（数据库精确查询，不再全量拉取）
     async getArtistSongs(artistId) {
       // 查询1：artist_ids 数组包含该艺术家的歌曲（演唱）
@@ -478,34 +511,118 @@
       return data?.[0] || null;
     },
 
-    // 评论 (使用歌曲表的备注字段或单独 comments 表)
+    // 评论 (使用 comments 表，支持楼中楼+身份标识+口令验证)
     async getComments(songId) {
-      // 如果有 comments 表则使用 comments 表，否则返回空数组
       try {
         const { data, error } = await supabase
           .from('comments')
           .select('*')
           .eq('song_id', songId)
+          .eq('is_deleted', false)
           .order('created_at', { ascending: true });
-        return error ? [] : (data || []);
+        if (error) return [];
+
+        // 查询所有贡献者（含口令哈希），用于身份标识匹配
+        const { data: contributors } = await supabase
+          .from('contributors')
+          .select('id, name, is_owner, avatar, tags, verify_code_hash');
+        const contributorMap = {};
+        (contributors || []).forEach(c => {
+          contributorMap[c.name.toLowerCase()] = c;
+        });
+
+        // 为每条评论附加贡献者信息
+        return (data || []).map(c => {
+          const matched = contributorMap[(c.author || '').toLowerCase()];
+          return {
+            ...c,
+            contributor: matched || null,
+            is_owner: matched?.is_owner || false,
+            is_contributor: !!matched
+          };
+        });
       } catch (e) {
         return [];
       }
     },
 
-    async addComment(songId, content, author = '匿名') {
+    async addComment(songId, content, author = '匿名', email = '', parentId = null, rootId = null) {
       const { data, error } = await supabase
         .from('comments')
         .insert([{
-          id: 'cmt' + Date.now(),
+          id: 'cmt' + Date.now() + Math.random().toString(36).slice(2, 6),
           song_id: songId,
           author,
+          email,
+          parent_id: parentId,
+          root_id: rootId || parentId, // 回复时自动关联根评论
           content,
           created_at: new Date().toISOString()
         }])
         .select();
       if (error) throw error;
       return data?.[0] || null;
+    },
+
+    // 验证口令：检查昵称+口令哈希是否匹配
+    async verifyContributor(name, verifyCode) {
+      try {
+        const hash = await this.sha256(verifyCode);
+        const { data, error } = await supabase
+          .from('contributors')
+          .select('id, name, is_owner, avatar, tags')
+          .ilike('name', name)
+          .eq('verify_code_hash', hash);
+        if (error || !data || data.length === 0) return null;
+        return data[0];
+      } catch (e) {
+        return null;
+      }
+    },
+
+    // 修改口令（验证通过后，贡献者可自行修改）
+    async changeVerifyCode(contributorId, oldCode, newCode) {
+      try {
+        const oldHash = await this.sha256(oldCode);
+        const newHash = await this.sha256(newCode);
+        // 先验证旧口令
+        const { data: verify } = await supabase
+          .from('contributors')
+          .select('id')
+          .eq('id', contributorId)
+          .eq('verify_code_hash', oldHash);
+        if (!verify || verify.length === 0) {
+          return { success: false, error: '旧口令不正确' };
+        }
+        // 更新为新口令
+        const { error } = await supabase
+          .from('contributors')
+          .update({ verify_code_hash: newHash })
+          .eq('id', contributorId);
+        if (error) throw error;
+        return { success: true };
+      } catch (e) {
+        return { success: false, error: e.message };
+      }
+    },
+
+    // SHA-256 哈希函数
+    async sha256(str) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(str);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+
+    // 删除评论（软删除）
+    async deleteComment(id) {
+      const { error } = await supabase
+        .from('comments')
+        .update({ is_deleted: true })
+        .eq('id', id);
+      if (error) throw error;
+      return true;
     },
 
     // 获取所有赞助者（按金额降序）
