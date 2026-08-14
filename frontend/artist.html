@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -62,6 +62,91 @@
     .artist-bg-content {
       position: relative;
       z-index: 2;
+    }
+
+    /* 平板：艺术家歌曲表格列宽收紧 */
+    @media (min-width: 641px) and (max-width: 1024px) {
+      .artist-song-grid-header,
+      .artist-song-list .song-row {
+        grid-template-columns: 30px 1fr 100px 72px !important;
+        gap: 3px !important;
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+      }
+    }
+
+    /* 移动端歌曲列表（双结构方案） */
+    .mobile-artist-songs { display: flex; flex-direction: column; }
+    .mobile-artist-song-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f3f4f6;
+      cursor: pointer;
+      transition: background 0.15s;
+      text-decoration: none;
+    }
+    .mobile-artist-song-item:last-child { border-bottom: none; }
+    .mobile-artist-song-item:active { background: #f9fafb; }
+    .mobile-artist-song-num {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #ec4899;
+      background: #fdf2f8;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+    .mobile-artist-song-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .mobile-artist-song-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111827;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .mobile-artist-song-album {
+      font-size: 12px;
+      color: #9ca3af;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .mobile-artist-song-album .tag {
+      display: inline-block;
+      margin-right: 4px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #6b7280;
+      background: #f3f4f6;
+    }
+    .mobile-artist-song-dur {
+      font-size: 13px;
+      color: #9ca3af;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+
+    /* 响应式切换：不用 Tailwind md: 前缀（CDN 对动态注入类不可靠） */
+    .desktop-only { display: block; }
+    .mobile-only { display: none; }
+    @media (max-width: 767px) {
+      .desktop-only { display: none !important; }
+      .mobile-only { display: block !important; }
     }
   </style>
 </head>
@@ -350,21 +435,21 @@
         return;
       }
       
-      container.innerHTML = `
-        <div class="space-y-1">
-          <div class="grid grid-cols-[30px_1fr_120px_80px] gap-4 px-4 py-2 text-xs text-gray-400 border-b border-gray-100">
+      // 桌面端：grid 表格
+      const desktopHtml = `
+        <div class="desktop-only space-y-1">
+          <div class="artist-song-grid-header grid grid-cols-[30px_1fr_120px_80px] gap-4 px-4 py-2 text-xs text-gray-400 border-b border-gray-100">
             <span>#</span>
             <span>歌曲</span>
             <span>专辑</span>
             <span class="text-right">时长</span>
           </div>
+          <div class="artist-song-list space-y-1">
           ${filteredSongs.map((song, i) => {
-            // 显示这首歌的所有贡献类型
             const contribTags = (song.contributions || []).map(c => {
               const cl = typeLabels[c] || c;
               return `<span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 ml-1">${cl}</span>`;
             }).join('');
-            
             return `
               <a href="./song.html?id=${song.id}" class="song-row grid grid-cols-[30px_1fr_120px_80px] gap-4 px-4 py-3 rounded-lg items-center transition group">
                 <span class="text-gray-400 text-sm">${String(i + 1).padStart(2, '0')}</span>
@@ -377,8 +462,31 @@
               </a>
             `;
           }).join('')}
-        </div>
-      `;
+          </div>
+        </div>`;
+
+      // 移动端：div 列表
+      const mobileHtml = `
+        <div class="mobile-only mobile-artist-songs px-4">
+          ${filteredSongs.map((song, i) => {
+            const contribTags = (song.contributions || []).map(c => {
+              const cl = typeLabels[c] || c;
+              return `<span class="tag">${cl}</span>`;
+            }).join('');
+            return `
+              <a href="./song.html?id=${song.id}" class="mobile-artist-song-item">
+                <span class="mobile-artist-song-num">${String(i + 1).padStart(2, '0')}</span>
+                <div class="mobile-artist-song-main">
+                  <span class="mobile-artist-song-title">${song.title}</span>
+                  <span class="mobile-artist-song-album">${contribTags}${song.album_name || '未知'}</span>
+                </div>
+                <span class="mobile-artist-song-dur">${formatDuration(song.duration)}</span>
+              </a>
+            `;
+          }).join('')}
+        </div>`;
+
+      container.innerHTML = desktopHtml + mobileHtml;
     }
 
     function renderSongs(artist, container) {

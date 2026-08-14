@@ -34,6 +34,66 @@
     /* 搜索弹窗动画 */
     @keyframes searchIn { from{opacity:0;transform:scale(.95) translateY(-10px)} to{opacity:1;transform:scale(1) translateY(0)} }
     .animate-search-in { animation: searchIn 0.2s ease-out; }
+
+    /* ==== 移动端导航栏适配 ==== */
+    .desktop-nav { display: flex; }
+    .mobile-menu-btn { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; cursor: pointer; transition: background 0.2s; z-index: 60; }
+    .mobile-menu-btn:hover { background: #f3f4f6; }
+    .mobile-menu-btn span { display: block; width: 22px; height: 2px; background: #6b7280; position: relative; transition: all 0.3s; }
+    .mobile-menu-btn span::before, .mobile-menu-btn span::after { content: ''; position: absolute; left: 0; width: 22px; height: 2px; background: #6b7280; transition: all 0.3s; }
+    .mobile-menu-btn span::before { top: -7px; }
+    .mobile-menu-btn span::after { top: 7px; }
+    .mobile-menu-btn.is-open span { background: transparent; }
+    .mobile-menu-btn.is-open span::before { top: 0; transform: rotate(45deg); }
+    .mobile-menu-btn.is-open span::after { top: 0; transform: rotate(-45deg); }
+
+    .mobile-menu {
+      display: none;
+      position: fixed;
+      top: 0; right: 0;
+      width: 75%; max-width: 300px;
+      height: 100vh;
+      background: #fff;
+      box-shadow: -4px 0 20px rgba(0,0,0,0.1);
+      z-index: 55;
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .mobile-menu.is-open {
+      display: block;
+      transform: translateX(0);
+    }
+    .mobile-menu a {
+      display: block;
+      padding: 14px 20px;
+      color: #374151;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 16px;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .mobile-menu a:hover { background: #fdf2f8; color: #ec4899; }
+    .mobile-menu a.active { color: #ec4899; font-weight: 600; background: #fdf2f8; }
+
+    .mobile-menu-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 54;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .mobile-menu-overlay.is-open {
+      display: block;
+      opacity: 1;
+    }
+
+    /* 断点：768px以下切换为移动端导航 */
+    @media (max-width: 768px) {
+      .desktop-nav { display: none !important; }
+      .mobile-menu-btn { display: flex !important; }
+    }
   `;
   document.head.appendChild(sharedStyle);
 
@@ -80,9 +140,14 @@
         <img src="${LOGO_URL}" alt="LrcShare Logo" class="w-8 h-8" />
         <span class="nav-art-title">LrcShare</span>
       </a>
-      <nav class="hidden md:flex gap-6 text-gray-600">
+      <!-- 桌面端导航 -->
+      <nav class="desktop-nav gap-6 text-gray-600">
         ${navLinksHtml}
       </nav>
+      <!-- 移动端汉堡按钮 -->
+      <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="菜单" aria-expanded="false">
+        <span></span>
+      </button>
     </div>
   </header>`;
 
@@ -134,12 +199,67 @@
     </div>
   </div>`;
 
-  // ============ 6. 注入到页面 ============
+  // ============ 6. 构建移动端菜单 HTML ============
+  const mobileNavLinksHtml = navItems.map(item => {
+    const active = isNavActive(item);
+    const cls = active ? 'active' : '';
+    const onclick = item.onclick ? ` onclick="${item.onclick}; closeMobileMenu(); return false;"` : '';
+    return `<a href="${item.href}" class="${cls}"${onclick}>${item.label}</a>`;
+  }).join('\n        ');
+
+  const mobileMenuHtml = `
+  <div id="mobileMenuOverlay" class="mobile-menu-overlay" onclick="closeMobileMenu()"></div>
+  <div id="mobileMenu" class="mobile-menu">
+    <div class="pt-4 pb-2 px-5 border-b border-gray-100">
+      <div class="flex items-center gap-2 text-xl font-bold">
+        <img src="${LOGO_URL}" alt="Logo" class="w-7 h-7" />
+        <span class="nav-art-title">LrcShare</span>
+      </div>
+    </div>
+    ${mobileNavLinksHtml}
+  </div>`;
+
+  // ============ 7. 注入到页面 ============
   // 在 body 最前面插入 header
   document.body.insertAdjacentHTML('afterbegin', headerHtml);
 
-  // 在 body 末尾插入 footer + search overlay
-  document.body.insertAdjacentHTML('beforeend', footerHtml + overlayHtml);
+  // 在 body 末尾插入 footer + search overlay + mobile menu
+  document.body.insertAdjacentHTML('beforeend', footerHtml + overlayHtml + mobileMenuHtml);
+
+  // ============ 8. 移动端菜单 toggle 逻辑 ============
+  function openMobileMenu() {
+    document.getElementById('mobileMenu')?.classList.add('is-open');
+    document.getElementById('mobileMenuOverlay')?.classList.add('is-open');
+    document.getElementById('mobileMenuBtn')?.classList.add('is-open');
+    const btn = document.getElementById('mobileMenuBtn');
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+  window.closeMobileMenu = function () {
+    document.getElementById('mobileMenu')?.classList.remove('is-open');
+    document.getElementById('mobileMenuOverlay')?.classList.remove('is-open');
+    document.getElementById('mobileMenuBtn')?.classList.remove('is-open');
+    const btn = document.getElementById('mobileMenuBtn');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  };
+  document.addEventListener('click', (e) => {
+    const btn = document.getElementById('mobileMenuBtn');
+    if (btn && (e.target === btn || btn.contains(e.target))) {
+      e.preventDefault();
+      const menu = document.getElementById('mobileMenu');
+      if (menu && menu.classList.contains('is-open')) {
+        closeMobileMenu();
+      } else {
+        openMobileMenu();
+      }
+    }
+  }, true);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeMobileMenu();
+    }
+  });
 
   // ============ 7. 搜索弹窗逻辑 ============
   const api = window.LRCSHAPE_API;

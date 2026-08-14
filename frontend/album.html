@@ -12,6 +12,7 @@
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     /* ==== 专辑页表格样式 ==== */
+    .album-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .album-table {
       width: 100%;
       border-collapse: collapse;
@@ -49,6 +50,72 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    /* 移动端歌曲列表（双结构方案，JS同时渲染，Tailwind断点切换） */
+    .mobile-song-list { display: flex; flex-direction: column; }
+    .mobile-song-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 4px;
+      border-bottom: 1px solid #f3f4f6;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .mobile-song-item:last-child { border-bottom: none; }
+    .mobile-song-item:active { background: #f9fafb; }
+    .mobile-song-num {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #ec4899;
+      background: #fdf2f8;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+    .mobile-song-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .mobile-song-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111827;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .mobile-song-sub {
+      font-size: 12px;
+      color: #9ca3af;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .mobile-song-sub a { color: #9ca3af; text-decoration: none; }
+    .mobile-song-sub a:hover { color: #ec4899; }
+    .mobile-song-dur {
+      font-size: 13px;
+      color: #9ca3af;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+
+    /* 响应式切换：不用 Tailwind md: 前缀（CDN 对动态注入类不可靠） */
+    .desktop-only { display: block; }
+    .mobile-only { display: none; }
+    @media (max-width: 767px) {
+      .desktop-only { display: none !important; }
+      .mobile-only { display: block !important; }
     }
   </style>
 </head>
@@ -131,19 +198,22 @@
 
       document.getElementById('albumPage').innerHTML = `
         <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-8 text-white">
-            <div class="flex items-center gap-6">
-              <div class="w-32 h-32 bg-white/20 rounded-xl flex items-center justify-center text-6xl shadow-lg overflow-hidden">
+          <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-6 md:p-8 text-white">
+            <div class="album-header-inner flex items-center gap-6">
+              <div class="w-24 h-24 md:w-32 md:h-32 bg-white/20 rounded-xl flex items-center justify-center text-4xl md:text-6xl shadow-lg overflow-hidden flex-shrink-0">
                 ${cover ? `<img src="${cover}" class="w-full h-full rounded-xl ${cover === DEFAULT_LOGO ? 'object-contain p-2' : 'object-cover'} clickable-img" onclick="event.stopPropagation(); openImgPreview(['${cover}'], 0)" />` : '💿'}
               </div>
-              <div>
-                <h1 class="text-3xl font-bold mb-2">${data.name}</h1>
-                ${artistLink}
-                <div class="text-sm opacity-75 mt-2">${data.year || ''}</div>
+              <div class="min-w-0 text-center md:text-left">
+                <h1 class="text-2xl md:text-3xl font-bold mb-2">${data.name}</h1>
+                <div class="album-header-artist text-base md:text-lg opacity-90">${artistLink}</div>
+                <div class="text-xs md:text-sm opacity-75 mt-2">${data.year || ''}</div>
               </div>
             </div>
           </div>
           ${data.songs.length > 0 ? `
+          <!-- 桌面端：table -->
+          <div class="desktop-only">
+          <div class="album-table-wrap">
           <table class="album-table">
             <thead>
               <tr>
@@ -162,26 +232,49 @@
                   <td class="col-song text-gray-800 font-medium">
                     <span class="ellipsis">${song.title}</span>
                   </td>
-                  <td class="col-singer text-sm">${singerHtml(song)}</td>
+                  <td class="col-singer text-sm singer-info-cell">${singerHtml(song)}</td>
                   <td class="col-dur text-gray-400 text-sm">${formatDuration(song.duration)}</td>
                 </tr>`;
               }).join('')}
             </tbody>
           </table>
+          </div>
+          </div>
+          <!-- 移动端：div 列表 -->
+          <div class="mobile-only px-4">
+          <div class="mobile-song-list">
+            ${data.songs.map(song => {
+              const track = song.track && song.track > 0 ? String(song.track).padStart(2, '0') : '';
+              const ids = song.artist_ids || [];
+              const singerNames = ids.map(id => artistMap[id]?.name || '未知').join(' / ');
+              return `
+              <div class="mobile-song-item" data-song-id="${song.id}">
+                <span class="mobile-song-num">${track || '♪'}</span>
+                <div class="mobile-song-main">
+                  <span class="mobile-song-title">${song.title}</span>
+                  <span class="mobile-song-sub">${singerNames || song.artist_name || ''}</span>
+                </div>
+                <span class="mobile-song-dur">${formatDuration(song.duration)}</span>
+              </div>`;
+            }).join('')}
+          </div>
+          </div>
           ` : '<div class="p-8 text-center text-gray-400">暂无歌曲</div>'}
         </div>
       `;
 
-      // 行点击跳转 + 歌手链接单独跳转
+      // 行点击跳转 + 歌手链接单独跳转（同时处理桌面 tr 和移动端 div）
       if (data.songs.length > 0) {
-        document.querySelectorAll('#albumPage tbody tr').forEach(tr => {
-          const songId = tr.getAttribute('data-song-id');
-          tr.addEventListener('click', (e) => {
-            // 如果点击的是歌手链接，不触发行跳转
+        const clickHandler = (el) => {
+          const songId = el.getAttribute('data-song-id');
+          if (!songId) return;
+          el.addEventListener('click', (e) => {
             if (e.target.closest('[data-nolink]')) return;
             window.location.href = `./song.html?id=${songId}`;
           });
-        });
+        };
+        document.querySelectorAll('#albumPage tbody tr').forEach(clickHandler);
+        document.querySelectorAll('#albumPage .mobile-song-item').forEach(clickHandler);
       }
     }
     initAlbum();
