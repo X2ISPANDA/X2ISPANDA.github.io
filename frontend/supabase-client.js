@@ -503,7 +503,6 @@
         .insert([{
           id: 'sub' + Date.now(),
           user_name: payload.submitter_name || '匿名',
-          user_email: payload.submitter_email || '',
           song_data: songData,
           status: 'pending',
           created_at: new Date().toISOString()
@@ -816,13 +815,19 @@
       const songData = {
         type: payload.type || 'song',
         title: payload.title || '',
+        // 多艺术家数组（新格式）：[{id, name}]，id 为 null 表示用户新建
+        artists: Array.isArray(payload.artists) ? payload.artists : [],
+        album_artists: Array.isArray(payload.album_artists) ? payload.album_artists : [],
+        lyricist_arr: Array.isArray(payload.lyricist_arr) ? payload.lyricist_arr : [],
+        composer_arr: Array.isArray(payload.composer_arr) ? payload.composer_arr : [],
+        // 兼容旧字段：拼接后的字符串（供后台列表展示）
         artist: payload.artist || '',
-        artist_id: payload.artist_id || null,
+        album_artist: payload.album_artist || '',
+        lyricist: payload.lyricist || '',
+        composer: payload.composer || '',
         album: payload.album || '',
         album_id: payload.album_id || null,
         year: payload.year || '',
-        lyricist: payload.lyricist || '',
-        composer: payload.composer || '',
         arranger: payload.arranger || '',
         duration: payload.duration || '',
         lrc_text: payload.lrc_text || '',
@@ -834,7 +839,7 @@
         .insert([{
           id: 'sub' + Date.now(),
           user_name: payload.submitter_name || '匿名',
-          user_email: payload.submitter_email || '',
+          contact_types: Array.isArray(payload.contact_types) ? payload.contact_types : [],
           contact_value: payload.contact_value || {},
           submitter_public_contact: !!payload.submitter_public_contact,
           // 投稿人选择的贡献者关联 & 操作标记

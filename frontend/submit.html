@@ -218,7 +218,7 @@
             </div>
           </div>
 
-          <!-- ===== 歌曲信息（仍保留原生 autocomplete + id） ===== -->
+          <!-- ===== 歌曲信息（标题/专辑/时长为原生 input；歌手/作词/作曲/专辑艺术家为 Vue tag 多选） ===== -->
           <div class="border-b pb-6">
             <h2 class="text-lg font-semibold text-gray-700 mb-4">🎵 歌曲信息</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -226,34 +226,142 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">歌曲名 <span class="text-red-500">*</span></label>
                 <input type="text" id="song_title" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" />
               </div>
-              <div class="relative autocomplete-container">
+
+              <!-- 歌手（多选 tag） -->
+              <div class="relative">
                 <label class="block text-sm font-medium text-gray-700 mb-1">歌手 <span class="text-red-500">*</span></label>
-                <input type="text" id="song_artist" required class="autocomplete-input w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" data-source="artists" data-types="singer" />
-                <div class="autocomplete-dropdown hidden absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10"></div>
+                <div class="w-full min-h-[42px] px-2 py-1 border border-gray-200 rounded-lg flex flex-wrap gap-1 items-center focus-within:ring-2 focus-within:ring-pink-500">
+                  <span v-for="(t, i) in form.artists" :key="'a'+i" class="inline-flex items-center gap-1 px-2 py-0.5 bg-pink-100 text-pink-700 rounded text-sm">
+                    {{ t.name }}<span v-if="!t.id" class="text-xs text-blue-600">新建</span>
+                    <button type="button" @click="removeTag('artists', i)" class="text-pink-400 hover:text-pink-700 leading-none">×</button>
+                  </span>
+                  <input type="text" v-model="tagInput.artists" @input="onTagInput('artists', $event.target.value, 'singer')"
+                         @keydown.enter.prevent="addNewTag('artists')"
+                         @keydown.delete="onTagBackspace('artists')"
+                         @blur="onTagBlur('artists')"
+                         placeholder="搜索或输入后回车"
+                         class="flex-1 min-w-[100px] outline-none text-sm py-1" />
+                </div>
+                <div v-if="tagDropdown.artists.length || (tagInput.artists.trim() && !isExactMatch('artists', tagInput.artists))" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div v-for="item in tagDropdown.artists" :key="item.id" @mousedown.prevent="selectTag('artists', item)"
+                       class="px-4 py-2 hover:bg-pink-50 cursor-pointer border-b border-gray-100">
+                    <div class="flex items-center">
+                      <span class="text-sm font-medium text-gray-800">{{ item.name }}</span>
+                      <span v-if="item.disambiguation" class="text-xs text-purple-500 ml-1">({{ item.disambiguation }})</span>
+                      <span class="ml-2 text-xs">{{ typeIcons(item.types) }}</span>
+                    </div>
+                  </div>
+                  <div v-if="tagInput.artists.trim() && !isExactMatch('artists', tagInput.artists)" @mousedown.prevent="addNewTag('artists')"
+                       class="px-4 py-2 hover:bg-blue-50 cursor-pointer text-blue-600 text-sm border-t-2 border-blue-200">
+                    ➕ 新增「{{ tagInput.artists.trim() }}」
+                  </div>
+                </div>
               </div>
+
+              <!-- 专辑（保持单选原生 input + 自动填充专辑艺术家） -->
               <div class="relative autocomplete-container">
                 <label class="block text-sm font-medium text-gray-700 mb-1">专辑 <span class="text-red-500">*</span></label>
                 <input type="text" id="song_album" required class="autocomplete-input w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" data-source="albums" />
                 <div class="autocomplete-dropdown hidden absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10"></div>
               </div>
-              <div>
+
+              <!-- 专辑艺术家（多选 tag，选已有专辑时自动填充） -->
+              <div class="relative">
                 <label class="block text-sm font-medium text-gray-700 mb-1">专辑艺术家</label>
-                <input type="text" id="song_album_artist" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="选择专辑后自动填充，也可手动输入" />
+                <div class="w-full min-h-[42px] px-2 py-1 border border-gray-200 rounded-lg flex flex-wrap gap-1 items-center focus-within:ring-2 focus-within:ring-pink-500">
+                  <span v-for="(t, i) in form.album_artists" :key="'aa'+i" class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-sm">
+                    {{ t.name }}<span v-if="!t.id" class="text-xs text-blue-600">新建</span>
+                    <button type="button" @click="removeTag('album_artists', i)" class="text-gray-400 hover:text-gray-700 leading-none">×</button>
+                  </span>
+                  <input type="text" v-model="tagInput.album_artists" @input="onTagInput('album_artists', $event.target.value, null)"
+                         @keydown.enter.prevent="addNewTag('album_artists')"
+                         @keydown.delete="onTagBackspace('album_artists')"
+                         @blur="onTagBlur('album_artists')"
+                         placeholder="选择专辑后自动填充，或手动输入"
+                         class="flex-1 min-w-[100px] outline-none text-sm py-1" />
+                </div>
                 <div class="text-xs text-gray-400 mt-1">如唱片公司、音乐平台等，不限于歌手</div>
+                <div v-if="tagDropdown.album_artists.length || (tagInput.album_artists.trim() && !isExactMatch('album_artists', tagInput.album_artists))" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div v-for="item in tagDropdown.album_artists" :key="item.id" @mousedown.prevent="selectTag('album_artists', item)"
+                       class="px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
+                    <div class="flex items-center">
+                      <span class="text-sm font-medium text-gray-800">{{ item.name }}</span>
+                      <span v-if="item.disambiguation" class="text-xs text-purple-500 ml-1">({{ item.disambiguation }})</span>
+                      <span class="ml-2 text-xs">{{ typeIcons(item.types) }}</span>
+                    </div>
+                  </div>
+                  <div v-if="tagInput.album_artists.trim() && !isExactMatch('album_artists', tagInput.album_artists)" @mousedown.prevent="addNewTag('album_artists')"
+                       class="px-4 py-2 hover:bg-blue-50 cursor-pointer text-blue-600 text-sm border-t-2 border-blue-200">
+                    ➕ 新增「{{ tagInput.album_artists.trim() }}」
+                  </div>
+                </div>
               </div>
+
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">时长</label>
                 <input type="text" id="song_duration" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" placeholder="如：03:30" />
               </div>
-              <div class="relative autocomplete-container">
+
+              <!-- 作词（多选 tag） -->
+              <div class="relative">
                 <label class="block text-sm font-medium text-gray-700 mb-1">作词</label>
-                <input type="text" id="song_lyricist" class="autocomplete-input w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" data-source="artists" data-types="lyricist" />
-                <div class="autocomplete-dropdown hidden absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10"></div>
+                <div class="w-full min-h-[42px] px-2 py-1 border border-gray-200 rounded-lg flex flex-wrap gap-1 items-center focus-within:ring-2 focus-within:ring-pink-500">
+                  <span v-for="(t, i) in form.lyricists" :key="'l'+i" class="inline-flex items-center gap-1 px-2 py-0.5 bg-pink-100 text-pink-700 rounded text-sm">
+                    {{ t.name }}<span v-if="!t.id" class="text-xs text-blue-600">新建</span>
+                    <button type="button" @click="removeTag('lyricists', i)" class="text-pink-400 hover:text-pink-700 leading-none">×</button>
+                  </span>
+                  <input type="text" v-model="tagInput.lyricists" @input="onTagInput('lyricists', $event.target.value, 'lyricist')"
+                         @keydown.enter.prevent="addNewTag('lyricists')"
+                         @keydown.delete="onTagBackspace('lyricists')"
+                         @blur="onTagBlur('lyricists')"
+                         placeholder="搜索或输入后回车"
+                         class="flex-1 min-w-[100px] outline-none text-sm py-1" />
+                </div>
+                <div v-if="tagDropdown.lyricists.length || (tagInput.lyricists.trim() && !isExactMatch('lyricists', tagInput.lyricists))" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div v-for="item in tagDropdown.lyricists" :key="item.id" @mousedown.prevent="selectTag('lyricists', item)"
+                       class="px-4 py-2 hover:bg-pink-50 cursor-pointer border-b border-gray-100">
+                    <div class="flex items-center">
+                      <span class="text-sm font-medium text-gray-800">{{ item.name }}</span>
+                      <span v-if="item.disambiguation" class="text-xs text-purple-500 ml-1">({{ item.disambiguation }})</span>
+                      <span class="ml-2 text-xs">{{ typeIcons(item.types) }}</span>
+                    </div>
+                  </div>
+                  <div v-if="tagInput.lyricists.trim() && !isExactMatch('lyricists', tagInput.lyricists)" @mousedown.prevent="addNewTag('lyricists')"
+                       class="px-4 py-2 hover:bg-blue-50 cursor-pointer text-blue-600 text-sm border-t-2 border-blue-200">
+                    ➕ 新增「{{ tagInput.lyricists.trim() }}」
+                  </div>
+                </div>
               </div>
-              <div class="relative autocomplete-container">
+
+              <!-- 作曲（多选 tag） -->
+              <div class="relative">
                 <label class="block text-sm font-medium text-gray-700 mb-1">作曲</label>
-                <input type="text" id="song_composer" class="autocomplete-input w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" data-source="artists" data-types="composer" />
-                <div class="autocomplete-dropdown hidden absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10"></div>
+                <div class="w-full min-h-[42px] px-2 py-1 border border-gray-200 rounded-lg flex flex-wrap gap-1 items-center focus-within:ring-2 focus-within:ring-pink-500">
+                  <span v-for="(t, i) in form.composers" :key="'c'+i" class="inline-flex items-center gap-1 px-2 py-0.5 bg-pink-100 text-pink-700 rounded text-sm">
+                    {{ t.name }}<span v-if="!t.id" class="text-xs text-blue-600">新建</span>
+                    <button type="button" @click="removeTag('composers', i)" class="text-pink-400 hover:text-pink-700 leading-none">×</button>
+                  </span>
+                  <input type="text" v-model="tagInput.composers" @input="onTagInput('composers', $event.target.value, 'composer')"
+                         @keydown.enter.prevent="addNewTag('composers')"
+                         @keydown.delete="onTagBackspace('composers')"
+                         @blur="onTagBlur('composers')"
+                         placeholder="搜索或输入后回车"
+                         class="flex-1 min-w-[100px] outline-none text-sm py-1" />
+                </div>
+                <div v-if="tagDropdown.composers.length || (tagInput.composers.trim() && !isExactMatch('composers', tagInput.composers))" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div v-for="item in tagDropdown.composers" :key="item.id" @mousedown.prevent="selectTag('composers', item)"
+                       class="px-4 py-2 hover:bg-pink-50 cursor-pointer border-b border-gray-100">
+                    <div class="flex items-center">
+                      <span class="text-sm font-medium text-gray-800">{{ item.name }}</span>
+                      <span v-if="item.disambiguation" class="text-xs text-purple-500 ml-1">({{ item.disambiguation }})</span>
+                      <span class="ml-2 text-xs">{{ typeIcons(item.types) }}</span>
+                    </div>
+                  </div>
+                  <div v-if="tagInput.composers.trim() && !isExactMatch('composers', tagInput.composers)" @mousedown.prevent="addNewTag('composers')"
+                       class="px-4 py-2 hover:bg-blue-50 cursor-pointer text-blue-600 text-sm border-t-2 border-blue-200">
+                    ➕ 新增「{{ tagInput.composers.trim() }}」
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -301,7 +409,7 @@
     // ========= 全局常量 & 原生 autocomplete 数据 =========
     const api = window.LRCSHAPE_API;
     const DEFAULT_LOGO = 'https://i0.hdslb.com/bfs/article/a2323ad6e33924c39061b35ae29f9fd937977624.png';
-    const CONTACT_TYPES = ['QQ','微信','邮箱','B站','GitHub','博客','抖音','微博','Twitter','小红书','网易音乐人','个人主页','电话','手机'];
+    const CONTACT_TYPES = ['QQ','微信','B站','GitHub','博客','抖音','微博','Twitter','小红书','网易音乐人','个人主页','电话','手机'];
 
     const autocompleteData = { artists: [], albums: [] };
     async function loadAutocompleteData() {
@@ -356,10 +464,9 @@
             } else if (source === 'albums') {
               input.dataset.albumId = selectedItem.id;
               const ids = selectedItem.artist_ids || [];
-              const artistNames = ids.map(id => { const a = autocompleteData.artists.find(x => x.id === id); return a ? a.name : ''; }).filter(Boolean);
-              const artistName = artistNames.join(' / ') || selectedItem.artist_name || '';
-              const albumArtistInput = document.getElementById('song_album_artist');
-              if (albumArtistInput && artistName) albumArtistInput.value = artistName;
+              const artistObjs = ids.map(id => { const a = autocompleteData.artists.find(x => x.id === id); return a ? { id: a.id, name: a.name } : null; }).filter(Boolean);
+              // 通过 Vue 全局函数填充专辑艺术家 tag 数组
+              if (window.__setAlbumArtists && artistObjs.length) window.__setAlbumArtists(artistObjs);
             }
           }
         });
@@ -398,6 +505,73 @@
           request_update: false,
           request_clear: false
         });
+
+        // ===== 多艺术家 tag 多选数据 =====
+        // form.<field> 存 [{id, name}]，id 为 null 表示用户新建（待后台审核填 ID）
+        const form = reactive({
+          artists: [],        // 歌手
+          album_artists: [],  // 专辑艺术家（可为唱片公司等非个体）
+          lyricists: [],      // 作词
+          composers: []       // 作曲
+        });
+        const tagInput = reactive({ artists: '', album_artists: '', lyricists: '', composers: '' });
+        const tagDropdown = reactive({ artists: [], album_artists: [], lyricists: [], composers: [] });
+
+        const TYPE_ICONS = { singer: '🎤', lyricist: '📝', composer: '🎼', arranger: '🎹' };
+        function typeIcons(types) {
+          return (types || ['singer']).map(t => TYPE_ICONS[t] || '').join('');
+        }
+        // 输入框输入时刷新下拉建议；filterType 为 null 表示不过滤类型（专辑艺术家）
+        function onTagInput(field, value, filterType) {
+          const q = (value || '').trim().toLowerCase();
+          if (!q) { tagDropdown[field] = []; return; }
+          let items = (autocompleteData.artists || []).filter(a => a.name.toLowerCase().includes(q));
+          if (filterType) {
+            items = items.filter(a => {
+              const types = a.types || ['singer'];
+              return types.some(t => t === filterType);
+            });
+          }
+          tagDropdown[field] = items.slice(0, 8);
+        }
+        // 判断输入文本是否与某已有艺术家精确匹配（用于隐藏"新增"项）
+        function isExactMatch(field, value) {
+          const q = (value || '').trim().toLowerCase();
+          if (!q) return true;
+          return (autocompleteData.artists || []).some(a => a.name.toLowerCase() === q);
+        }
+        // 选中已有艺术家
+        function selectTag(field, item) {
+          if (form[field].some(t => t.name === item.name)) {
+            tagInput[field] = ''; tagDropdown[field] = []; return;
+          }
+          form[field].push({ id: item.id || null, name: item.name });
+          tagInput[field] = ''; tagDropdown[field] = [];
+        }
+        // 输入新名称回车 → 新增 tag（若精确匹配已有则走 selectTag）
+        function addNewTag(field) {
+          const name = (tagInput[field] || '').trim();
+          if (!name) return;
+          const exact = (autocompleteData.artists || []).find(a => a.name === name);
+          if (exact) { selectTag(field, exact); return; }
+          if (form[field].some(t => t.name === name)) {
+            tagInput[field] = ''; tagDropdown[field] = []; return;
+          }
+          form[field].push({ id: null, name: name });
+          tagInput[field] = ''; tagDropdown[field] = [];
+        }
+        function removeTag(field, idx) { form[field].splice(idx, 1); }
+        function onTagBackspace(field) {
+          if (!tagInput[field] && form[field].length > 0) form[field].pop();
+        }
+        function onTagBlur(field) {
+          setTimeout(() => { tagDropdown[field] = []; }, 200);
+        }
+        // 选已有专辑时由原生 autocomplete 回调填充专辑艺术家
+        function setAlbumArtists(artists) {
+          form.album_artists = Array.isArray(artists) ? artists : [];
+        }
+        window.__setAlbumArtists = setAlbumArtists;
 
         // 贡献者远程搜索
         const contributorOptions = ref([]);
@@ -503,18 +677,22 @@
         const submitting = ref(false);
 
         async function handleSubmit() {
-          // 1. 取歌曲相关的原生 input 值
+          // 1. 取歌曲相关的原生 input 值（标题/专辑/时长/歌词为原生 input；歌手/作词/作曲/专辑艺术家为 Vue tag 数组）
           const getVal = id => { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
-          const getId = id => { const el = document.getElementById(id); return el ? (el.dataset.artistId || el.dataset.albumId || null) : null; };
           const song_data = {
             title: getVal('song_title'),
-            artist: getVal('song_artist'),
-            artist_id: document.getElementById('song_artist')?.dataset.artistId || null,
+            // 多艺术家数组：[{id, name}]，id 为 null 表示用户新建
+            artists: form.artists.slice(),
+            album_artists: form.album_artists.slice(),
+            lyricist_arr: form.lyricists.slice(),
+            composer_arr: form.composers.slice(),
+            // 兼容旧字段：用 ' / ' 拼接的字符串（供后台列表展示）
+            artist: form.artists.map(a => a.name).join(' / '),
+            album_artist: form.album_artists.map(a => a.name).join(' / '),
+            lyricist: form.lyricists.map(a => a.name).join(' / '),
+            composer: form.composers.map(a => a.name).join(' / '),
             album: getVal('song_album'),
             album_id: document.getElementById('song_album')?.dataset.albumId || null,
-            artist_name: getVal('song_album_artist'),
-            lyricist: getVal('song_lyricist'),
-            composer: getVal('song_composer'),
             duration: getVal('song_duration'),
             lrc_text: getVal('lrc_text'),
             video_url: getVal('song_video_url')
@@ -532,7 +710,7 @@
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) { ElementPlus.ElMessage.warning('请填写正确的邮箱地址'); return; }
           }
-          if (!song_data.title || !song_data.artist || !song_data.album || !song_data.lrc_text) {
+          if (!song_data.title || song_data.artists.length === 0 || !song_data.album || !song_data.lrc_text) {
             ElementPlus.ElMessage.warning('请填写所有必填的歌曲字段（歌曲名/歌手/专辑/歌词）');
             return;
           }
@@ -542,33 +720,30 @@
           }
 
           // 3. 构造 payload
-          // 联系方法：如果选了已有贡献者且没勾更新 → 发送空（后台不会去改他的信息）
-          let contactObj;
-          if (selectedContributor.value && !userForm.request_update) {
-            contactObj = {};
-          } else {
-            contactObj = collectContactsObj();
+          // 联系方式：邮箱始终加入 contact_value（用于通知）；其他联系方式仅在新建/更新贡献者时添加
+          // 与 contributors 表保持一致：contact_types（数组）+ contact_value（JSONB对象）
+          let contactObj = {};
+          if (email) contactObj['邮箱'] = email;
+          if (!(selectedContributor.value && !userForm.request_update)) {
+            // 新建贡献者或勾选了更新 → 添加所有联系方式
+            const otherContacts = collectContactsObj();
+            Object.assign(contactObj, otherContacts);
           }
+          const contactTypes = Object.keys(contactObj); // 从 contact_value 的 keys 推导类型数组
 
           // 选了已有贡献者 → 填 contributor_id 关联
           const contributor_id = selectedContributor.value ? selectedContributor.value.id : null;
 
-          // email：选了已有贡献者但没填 → 尝试从后端读取发通知
-          let finalEmail = email;
-          if (selectedContributor.value && !finalEmail) {
-            // 从 contact_value 的"邮箱"字段兜底，找不到就留空（通知发不出就算了）
-            try {
-              const cv = selectedContributor.value.contact_value;
-              const parsed = typeof cv === 'string' ? JSON.parse(cv || '{}') : (cv || {});
-              if (parsed && parsed['邮箱']) finalEmail = parsed['邮箱'];
-            } catch (_) {}
-          }
-
           const payload = {
             type: 'song',
             title: song_data.title,
+            // 多艺术家数组（新格式，后台审核时使用）
+            artists: song_data.artists,
+            album_artists: song_data.album_artists,
+            lyricist_arr: song_data.lyricist_arr,
+            composer_arr: song_data.composer_arr,
+            // 兼容旧字段
             artist: song_data.artist,
-            artist_id: song_data.artist_id,
             album: song_data.album,
             album_id: song_data.album_id,
             lyricist: song_data.lyricist,
@@ -577,7 +752,7 @@
             lrc_text: song_data.lrc_text,
             video_url: song_data.video_url,
             submitter_name: name,
-            submitter_email: finalEmail,
+            contact_types: contactTypes,
             contact_value: contactObj,
             submitter_public_contact: !!userForm.public_contact,
             // 贡献者关联 & 操作标记
@@ -620,6 +795,9 @@
           currentQuery, isNewContributor,
           onRequestUpdateChange, onRequestClearChange,
           addContact, removeContact, isContactTypeSelected,
+          // 多艺术家 tag 多选
+          form, tagInput, tagDropdown,
+          typeIcons, onTagInput, isExactMatch, selectTag, addNewTag, removeTag, onTagBackspace, onTagBlur,
           submitted, submitting, handleSubmit
         };
       }

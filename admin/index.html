@@ -467,6 +467,20 @@
                                   <el-input v-model="props.row.edited_data.video_url" placeholder="B站/YouTube链接（选填）" />
                                 </el-form-item>
                               </el-form>
+
+                              <!-- 待创建艺术家列表（用户投稿时新建的、无 ID 的艺术家） -->
+                              <div v-if="getNewArtists(props.row.edited_data).length > 0" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div class="text-sm font-semibold text-blue-800 mb-2">🆕 待创建艺术家（请填写 ID 和是否展示）</div>
+                                <div class="text-xs text-blue-600 mb-3">用户投稿时新建的艺术家没有 ID，无法自动入库。请为每一项填写可读 ID（如 art_xxx），并选择是否在前台展示。</div>
+                                <div v-for="(entry, idx) in getNewArtists(props.row.edited_data)" :key="idx" class="flex items-center gap-2 mb-2 bg-white p-2 rounded">
+                                  <el-tag size="small" :type="entry.source === '专辑艺术家' ? 'info' : 'success'">{{ entry.source }}</el-tag>
+                                  <span class="text-sm font-medium text-gray-800 min-w-[80px]">{{ entry.item.name }}</span>
+                                  <el-input v-model="entry.item.id" placeholder="art_xxx（必填）" size="small" style="width: 180px;" />
+                                  <span class="text-xs text-gray-500">展示</span>
+                                  <el-switch v-model="entry.item.is_show" />
+                                </div>
+                              </div>
+
                               <div class="flex gap-3 mt-4">
                                 <el-button type="success" size="small" @click.stop="approveSubmission(props.row)">✅ 通过发布</el-button>
                                 <el-button type="danger" size="small" @click.stop="rejectSubmission(props.row)">❌ 拒绝</el-button>
@@ -2662,7 +2676,40 @@
           }
         };
 
+        // 收集投稿中所有"无 ID 的新建艺术家"，返回 [{item, source}] 列表
+        // item 是对 edited_data.<field>[idx] 的引用，管理员填的 id/is_show 会直接写回数组
+        const getNewArtists = (editedData) => {
+          if (!editedData) return [];
+          const fields = [
+            { key: 'artists', label: '歌手' },
+            { key: 'album_artists', label: '专辑艺术家' },
+            { key: 'lyricist_arr', label: '作词' },
+            { key: 'composer_arr', label: '作曲' }
+          ];
+          const result = [];
+          fields.forEach(f => {
+            const arr = editedData[f.key];
+            if (!Array.isArray(arr)) return;
+            arr.forEach(item => {
+              if (!item || item.id) return; // 已有 ID 跳过
+              if (item.is_show === undefined) item.is_show = true; // 默认展示
+              result.push({ item: item, source: f.label });
+            });
+          });
+          return result;
+        };
+
         const approveSubmission = async (sub) => {
+          // 校验：如有无 ID 的新建艺术家，管理员必须填 ID（避免窗口关闭后才发现没填）
+          const newArtists = getNewArtists(sub.edited_data);
+          if (newArtists.length > 0) {
+            const missing = newArtists.filter(e => !e.item.id || !String(e.item.id).trim());
+            if (missing.length > 0) {
+              ElementPlus.ElMessage.error('有 ' + missing.length + ' 位新建艺术家未填写 ID（' + missing.map(e => e.item.name).join('、') + '），请填写后再通过');
+              return; // 不更新状态、不关闭窗口
+            }
+          }
+
           try {
             // 更新投稿状态为 approved
             await api.update('submissions', sub.id, {
@@ -2680,10 +2727,17 @@
                 pass: s.smtp_pass || '',
                 admin_email: s.admin_email || ''
               };
+              // 邮箱从 contact_value 中读取
+              let userEmail = '';
+              try {
+                const cv = sub.contact_value;
+                const parsed = typeof cv === 'string' ? JSON.parse(cv || '{}') : (cv || {});
+                userEmail = parsed['邮箱'] || '';
+              } catch (_) {}
               await api.callServer('/api/admin/submissions/' + sub.id + '/approve', 'POST', {
                 submission_id: sub.id,
                 song_data: sub.edited_data,
-                user_email: sub.user_email,
+                user_email: userEmail,
                 user_name: sub.user_name
               }, smtp);
             } catch (e) {
@@ -2693,6 +2747,55 @@
             // 创建歌曲
             const sd = sub.edited_data;
             const songId = 's' + Date.now();
+
+            // ---- 批量插入"用户新建的艺术家"（管理员已填 ID） ----
+            // 按 name 去重（同名只插一次），types 取所有来源并集
+            const SOURCE_TYPES = {
+              '歌手': 'singer',
+              '专辑艺术家': 'singer', // 专辑艺术家可能是唱片公司等，默认 singer，管理员可后续改
+              '作词': 'lyricist',
+              '作曲': 'composer'
+            };
+            const dedupMap = new Map(); // name → { id, name, types:Set, is_show }
+            newArtists.forEach(e => {
+              const name = e.item.name;
+              const typeKey = SOURCE_TYPES[e.source] || 'singer';
+              if (dedupMap.has(name)) {
+                const ex = dedupMap.get(name);
+                ex.types.add(typeKey);
+                // is_show 取并集（任一来源要求展示则展示）
+                if (e.item.is_show) ex.is_show = true;
+              } else {
+                dedupMap.set(name, {
+                  id: String(e.item.id).trim(),
+                  name: name,
+                  types: new Set([typeKey]),
+                  is_show: e.item.is_show !== false
+                });
+              }
+            });
+            for (const art of dedupMap.values()) {
+              await api.insert('artists', {
+                id: art.id,
+                name: art.name,
+                types: Array.from(art.types),
+                is_show: art.is_show,
+                sort: 0
+              });
+            }
+            // name → id 映射，用于给数组各项填真实 ID（同名统一用同一个 ID）
+            const nameToId = {};
+            dedupMap.forEach((v, k) => { nameToId[k] = v.id; });
+            // 回填：把 sd 中所有无 ID 的项的 id 替换为管理员填的真实 ID
+            ['artists', 'album_artists', 'lyricist_arr', 'composer_arr'].forEach(k => {
+              if (Array.isArray(sd[k])) {
+                sd[k].forEach(item => {
+                  if (item && !item.id && item.name && nameToId[item.name]) {
+                    item.id = nameToId[item.name];
+                  }
+                });
+              }
+            });
 
             // ---- contact_value 已与 contributors 表一致（JSONB），无需转换 ----
             const contactValue = sub.contact_value || {};
@@ -2716,7 +2819,7 @@
                   contact_value: {},
                   public_contact: false,
                   location: '',
-                  sort: 999
+                  sort: 0
                 });
                 contributorAction = 'clear';
               } else if (sub.submitter_request_update) {
@@ -2746,19 +2849,46 @@
                 public_bio: true,
                 tags: ['歌词提交'],
                 is_owner: false,
-                sort: 999
+                sort: 0
               });
               contributorId = newContributorId;
               contributorAction = 'new';
             }
 
+            // ---- 构造歌曲的 artist_ids（来自 sd.artists 数组的 id 列表；兼容旧格式 artist_id）----
+            const artistIds = (sd.artists && sd.artists.length)
+              ? sd.artists.map(a => a.id).filter(Boolean)
+              : (sd.artist_id ? [sd.artist_id] : []);
+
+            // ---- 处理专辑：用户选了已有专辑 → 直接用；用户新建专辑 → 创建专辑记录 ----
+            let albumId = sd.album_id || null;
+            if (!albumId && sd.album) {
+              // 用户新建专辑：album_artists 提供 artist_ids
+              const albumArtistIds = (sd.album_artists || []).map(a => a.id).filter(Boolean);
+              albumId = 'al' + Date.now();
+              await api.insert('albums', {
+                id: albumId,
+                name: sd.album,
+                artist_ids: albumArtistIds,
+                year: sd.year ? parseInt(sd.year) : null
+              });
+            }
+
+            // ---- 歌曲的 lyricist/composer 用拼接字符串（songs 表为 text 字段，保持向后兼容）----
+            const lyricistStr = (sd.lyricist_arr && sd.lyricist_arr.length)
+              ? sd.lyricist_arr.map(a => a.name).join(' / ')
+              : (sd.lyricist || '');
+            const composerStr = (sd.composer_arr && sd.composer_arr.length)
+              ? sd.composer_arr.map(a => a.name).join(' / ')
+              : (sd.composer || '');
+
             const songRecord = {
               id: songId,
               title: sd.title,
-              artist_ids: sd.artist_id ? [sd.artist_id] : [],
-              album_id: sd.album_id || null,
-              lyricist: sd.lyricist || '',
-              composer: sd.composer || '',
+              artist_ids: artistIds,
+              album_id: albumId,
+              lyricist: lyricistStr,
+              composer: composerStr,
               arranger: sd.arranger || '',
               duration: sd.duration || '',
               lrc_text: sd.lrc_text,
@@ -2806,9 +2936,16 @@
                   pass: s.smtp_pass || '',
                   admin_email: s.admin_email || ''
                 };
+                // 邮箱从 contact_value 中读取
+                let rejectEmail = '';
+                try {
+                  const cv = sub.contact_value;
+                  const parsed = typeof cv === 'string' ? JSON.parse(cv || '{}') : (cv || {});
+                  rejectEmail = parsed['邮箱'] || '';
+                } catch (_) {}
                 await api.callServer('/api/admin/submissions/' + sub.id + '/reject', 'POST', {
                   submission_id: sub.id,
-                  user_email: sub.user_email,
+                  user_email: rejectEmail,
                   user_name: sub.user_name,
                   song_title: sub.song_data.title,
                   reject_reason: value
@@ -4787,6 +4924,7 @@
         showArtistWorksDialog, viewingArtist, artistWorksTab, artistWorks, viewArtistWorks,
           openNewSong, openNewArtist, openNewAlbum, onContributorChange,
           approveSubmission, rejectSubmission, withdrawSubmission,
+          getNewArtists,
           getArtistName, getArtistNames, getAlbumName, getAlbumArtist, statusTagType, statusText, formatTime, toggleRow,
           editSong, saveSong, deleteSong, lyricsTab, lyricsTextRef, rhymeColors, wrapRhyme, wrapRuby, wrapTag, wrapLink, descPreview, renderDesc, insertTip, onDescInput, onQuickDescInput,
           editArtist, saveArtist, deleteArtist,
