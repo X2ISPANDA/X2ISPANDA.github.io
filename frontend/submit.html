@@ -349,12 +349,15 @@
           e.preventDefault();
           input.value = el.dataset.value;
           dropdown.classList.add('hidden');
-          if (source === 'albums') {
-            const selectedAlbum = items.find(i => i.name === el.dataset.value);
-            if (selectedAlbum) {
-              const ids = selectedAlbum.artist_ids || [];
+          const selectedItem = items.find(i => i.name === el.dataset.value);
+          if (selectedItem) {
+            if (source === 'artists') {
+              input.dataset.artistId = selectedItem.id;
+            } else if (source === 'albums') {
+              input.dataset.albumId = selectedItem.id;
+              const ids = selectedItem.artist_ids || [];
               const artistNames = ids.map(id => { const a = autocompleteData.artists.find(x => x.id === id); return a ? a.name : ''; }).filter(Boolean);
-              const artistName = artistNames.join(' / ') || selectedAlbum.artist_name || '';
+              const artistName = artistNames.join(' / ') || selectedItem.artist_name || '';
               const albumArtistInput = document.getElementById('song_album_artist');
               if (albumArtistInput && artistName) albumArtistInput.value = artistName;
             }
@@ -366,7 +369,12 @@
       document.querySelectorAll('.autocomplete-input').forEach(input => {
         const container = input.closest('.autocomplete-container');
         const dropdown = container.querySelector('.autocomplete-dropdown');
-        input.addEventListener('input', () => showSuggestions(input, dropdown));
+        input.addEventListener('input', () => {
+          // 用户手动输入时清除已选 ID
+          delete input.dataset.artistId;
+          delete input.dataset.albumId;
+          showSuggestions(input, dropdown);
+        });
         input.addEventListener('focus', () => { if (input.value.trim()) showSuggestions(input, dropdown); });
         input.addEventListener('blur', () => setTimeout(() => dropdown.classList.add('hidden'), 200));
       });
@@ -497,10 +505,13 @@
         async function handleSubmit() {
           // 1. 取歌曲相关的原生 input 值
           const getVal = id => { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+          const getId = id => { const el = document.getElementById(id); return el ? (el.dataset.artistId || el.dataset.albumId || null) : null; };
           const song_data = {
             title: getVal('song_title'),
             artist: getVal('song_artist'),
+            artist_id: document.getElementById('song_artist')?.dataset.artistId || null,
             album: getVal('song_album'),
+            album_id: document.getElementById('song_album')?.dataset.albumId || null,
             artist_name: getVal('song_album_artist'),
             lyricist: getVal('song_lyricist'),
             composer: getVal('song_composer'),
@@ -557,7 +568,9 @@
             type: 'song',
             title: song_data.title,
             artist: song_data.artist,
+            artist_id: song_data.artist_id,
             album: song_data.album,
+            album_id: song_data.album_id,
             lyricist: song_data.lyricist,
             composer: song_data.composer,
             duration: song_data.duration,
