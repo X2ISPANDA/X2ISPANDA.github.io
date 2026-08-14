@@ -438,33 +438,172 @@
                                     </el-form-item>
                                   </el-col>
                                   <el-col :span="12">
-                                    <el-form-item label="歌手">
-                                      <el-input v-model="props.row.edited_data.artist" />
+                                    <el-form-item label="专辑">
+                                      <el-input v-model="props.row.edited_data.album" />
                                     </el-form-item>
                                   </el-col>
                                 </el-row>
                                 <el-row :gutter="12">
                                   <el-col :span="12">
-                                    <el-form-item label="专辑">
-                                      <el-input v-model="props.row.edited_data.album" />
-                                    </el-form-item>
-                                  </el-col>
-                                  <el-col :span="6">
                                     <el-form-item label="时长">
                                       <el-input v-model="props.row.edited_data.duration" placeholder="03:30" />
                                     </el-form-item>
                                   </el-col>
-                                  <el-col :span="6">
-                                    <el-form-item label="作词">
-                                      <el-input v-model="props.row.edited_data.lyricist" />
+                                  <el-col :span="12">
+                                    <el-form-item label="视频链接">
+                                      <el-input v-model="props.row.edited_data.video_url" placeholder="B站/YouTube链接（选填）" />
                                     </el-form-item>
                                   </el-col>
                                 </el-row>
+
+                                <!-- 歌手（tag 多选，支持搜索已有 / 新建） -->
+                                <el-form-item label="歌手">
+                                  <div class="w-full min-h-[32px] px-2 py-1 border border-gray-200 rounded flex flex-wrap gap-1 items-center focus-within:ring-1 focus-within:ring-pink-500">
+                                    <template v-if="props.row.edited_data.artists && props.row.edited_data.artists.length">
+                                      <span v-for="(t, i) in props.row.edited_data.artists" :key="'sa'+i"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 bg-pink-100 text-pink-700 rounded text-xs">
+                                        {{ t.name }}<span v-if="!t.id" class="text-blue-600 text-[10px]">新建</span>
+                                        <button type="button" @click="adminRemoveTag(props.row.edited_data, 'artists', i)" class="text-pink-400 hover:text-pink-700 leading-none ml-0.5">×</button>
+                                      </span>
+                                    </template>
+                                    <input type="text"
+                                           :value="adminTagInput['s_'+props.row.id]"
+                                           @input="adminOnTagInput(props.row, 'artists', $event.target.value, 'singer')"
+                                           @keydown.enter.prevent="adminAddNewTag(props.row, 'artists', 'singer')"
+                                           @keydown.delete="adminOnTagBackspace(props.row, 'artists', 's_'+props.row.id)"
+                                           @blur="adminOnTagBlur(props.row, 'artists', 's_'+props.row.id)"
+                                           placeholder="搜索已有歌手或输入新名称"
+                                           class="flex-1 min-w-[120px] outline-none text-xs py-0.5" />
+                                  </div>
+                                  <!-- 下拉建议 -->
+                                  <div v-if="adminTagDropdown['s_'+props.row.id] && adminTagDropdown['s_'+props.row.id].length"
+                                       class="relative">
+                                    <div class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-40 overflow-y-auto">
+                                      <div v-for="item in adminTagDropdown['s_'+props.row.id]" :key="item.id"
+                                           @mousedown.prevent="adminSelectTag(props.row, 'artists', item)"
+                                           class="px-3 py-1.5 hover:bg-pink-50 cursor-pointer text-xs border-b border-gray-100">
+                                        {{ item.name }}<span class="ml-1 text-gray-400">{{ (item.types||[]).map(t=>TYPE_LABELS[t]).join('') }}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <!-- 新建提示 -->
+                                  <div v-if="adminTagInput['s_'+props.row.id] && adminTagInput['s_'+props.row.id].trim() && !adminIsExactMatch('s_'+props.row.id, adminTagInput['s_'+props.row.id])"
+                                       @mousedown.prevent="adminAddNewTag(props.row, 'artists', 'singer')"
+                                       class="cursor-pointer text-xs text-blue-600 hover:text-blue-700 mt-1">
+                                    ➕ 新增「{{ adminTagInput['s_'+props.row.id].trim() }}」
+                                  </div>
+                                </el-form-item>
+
+                                <!-- 专辑艺术家（tag 多选，可为唱片公司等） -->
+                                <el-form-item label="专辑艺术家">
+                                  <div class="w-full min-h-[32px] px-2 py-1 border border-gray-200 rounded flex flex-wrap gap-1 items-center focus-within:ring-1 focus-within:ring-pink-500">
+                                    <template v-if="props.row.edited_data.album_artists && props.row.edited_data.album_artists.length">
+                                      <span v-for="(t, i) in props.row.edited_data.album_artists" :key="'aa'+i"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">
+                                        {{ t.name }}<span v-if="!t.id" class="text-blue-600 text-[10px]">新建</span>
+                                        <button type="button" @click="adminRemoveTag(props.row.edited_data, 'album_artists', i)" class="text-gray-400 hover:text-gray-700 leading-none ml-0.5">×</button>
+                                      </span>
+                                    </template>
+                                    <input type="text"
+                                           :value="adminTagInput['aa_'+props.row.id]"
+                                           @input="adminOnTagInput(props.row, 'album_artists', $event.target.value, null)"
+                                           @keydown.enter.prevent="adminAddNewTag(props.row, 'album_artists')"
+                                           @keydown.delete="adminOnTagBackspace(props.row, 'album_artists', 'aa_'+props.row.id)"
+                                           @blur="adminOnTagBlur(props.row, 'album_artists', 'aa_'+props.row.id)"
+                                           placeholder="搜索已有艺术家或输入新名称（可为唱片公司等）"
+                                           class="flex-1 min-w-[120px] outline-none text-xs py-0.5" />
+                                  </div>
+                                  <div v-if="adminTagDropdown['aa_'+props.row.id] && adminTagDropdown['aa_'+props.row.id].length"
+                                       class="relative">
+                                    <div class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-40 overflow-y-auto">
+                                      <div v-for="item in adminTagDropdown['aa_'+props.row.id]" :key="item.id"
+                                           @mousedown.prevent="adminSelectTag(props.row, 'album_artists', item)"
+                                           class="px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-xs border-b border-gray-100">
+                                        {{ item.name }}<span class="ml-1 text-gray-400">{{ (item.types||[]).map(t=>TYPE_LABELS[t]).join('') }}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div v-if="adminTagInput['aa_'+props.row.id] && adminTagInput['aa_'+props.row.id].trim() && !adminIsExactMatch('aa_'+props.row.id, adminTagInput['aa_'+props.row.id])"
+                                       @mousedown.prevent="adminAddNewTag(props.row, 'album_artists')"
+                                       class="cursor-pointer text-xs text-blue-600 hover:text-blue-700 mt-1">
+                                    ➕ 新增「{{ adminTagInput['aa_'+props.row.id].trim() }}」
+                                  </div>
+                                </el-form-item>
+
+                                <!-- 作词（tag 多选） -->
+                                <el-form-item label="作词">
+                                  <div class="w-full min-h-[32px] px-2 py-1 border border-gray-200 rounded flex flex-wrap gap-1 items-center focus-within:ring-1 focus-within:ring-pink-500">
+                                    <template v-if="props.row.edited_data.lyricist_arr && props.row.edited_data.lyricist_arr.length">
+                                      <span v-for="(t, i) in props.row.edited_data.lyricist_arr" :key="'l'+i"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 bg-pink-100 text-pink-700 rounded text-xs">
+                                        {{ t.name }}<span v-if="!t.id" class="text-blue-600 text-[10px]">新建</span>
+                                        <button type="button" @click="adminRemoveTag(props.row.edited_data, 'lyricist_arr', i)" class="text-pink-400 hover:text-pink-700 leading-none ml-0.5">×</button>
+                                      </span>
+                                    </template>
+                                    <input type="text"
+                                           :value="adminTagInput['l_'+props.row.id]"
+                                           @input="adminOnTagInput(props.row, 'lyricist_arr', $event.target.value, 'lyricist')"
+                                           @keydown.enter.prevent="adminAddNewTag(props.row, 'lyricist_arr')"
+                                           @keydown.delete="adminOnTagBackspace(props.row, 'lyricist_arr', 'l_'+props.row.id)"
+                                           @blur="adminOnTagBlur(props.row, 'lyricist_arr', 'l_'+props.row.id)"
+                                           placeholder="搜索已有作词或输入新名称"
+                                           class="flex-1 min-w-[120px] outline-none text-xs py-0.5" />
+                                  </div>
+                                  <div v-if="adminTagDropdown['l_'+props.row.id] && adminTagDropdown['l_'+props.row.id].length"
+                                       class="relative">
+                                    <div class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-40 overflow-y-auto">
+                                      <div v-for="item in adminTagDropdown['l_'+props.row.id]" :key="item.id"
+                                           @mousedown.prevent="adminSelectTag(props.row, 'lyricist_arr', item)"
+                                           class="px-3 py-1.5 hover:bg-pink-50 cursor-pointer text-xs border-b border-gray-100">
+                                        {{ item.name }}<span class="ml-1 text-gray-400">{{ (item.types||[]).map(t=>TYPE_LABELS[t]).join('') }}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div v-if="adminTagInput['l_'+props.row.id] && adminTagInput['l_'+props.row.id].trim() && !adminIsExactMatch('l_'+props.row.id, adminTagInput['l_'+props.row.id])"
+                                       @mousedown.prevent="adminAddNewTag(props.row, 'lyricist_arr')"
+                                       class="cursor-pointer text-xs text-blue-600 hover:text-blue-700 mt-1">
+                                    ➕ 新增「{{ adminTagInput['l_'+props.row.id].trim() }}」
+                                  </div>
+                                </el-form-item>
+
+                                <!-- 作曲（tag 多选） -->
+                                <el-form-item label="作曲">
+                                  <div class="w-full min-h-[32px] px-2 py-1 border border-gray-200 rounded flex flex-wrap gap-1 items-center focus-within:ring-1 focus-within:ring-pink-500">
+                                    <template v-if="props.row.edited_data.composer_arr && props.row.edited_data.composer_arr.length">
+                                      <span v-for="(t, i) in props.row.edited_data.composer_arr" :key="'c'+i"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 bg-pink-100 text-pink-700 rounded text-xs">
+                                        {{ t.name }}<span v-if="!t.id" class="text-blue-600 text-[10px]">新建</span>
+                                        <button type="button" @click="adminRemoveTag(props.row.edited_data, 'composer_arr', i)" class="text-pink-400 hover:text-pink-700 leading-none ml-0.5">×</button>
+                                      </span>
+                                    </template>
+                                    <input type="text"
+                                           :value="adminTagInput['c_'+props.row.id]"
+                                           @input="adminOnTagInput(props.row, 'composer_arr', $event.target.value, 'composer')"
+                                           @keydown.enter.prevent="adminAddNewTag(props.row, 'composer_arr')"
+                                           @keydown.delete="adminOnTagBackspace(props.row, 'composer_arr', 'c_'+props.row.id)"
+                                           @blur="adminOnTagBlur(props.row, 'composer_arr', 'c_'+props.row.id)"
+                                           placeholder="搜索已有作曲或输入新名称"
+                                           class="flex-1 min-w-[120px] outline-none text-xs py-0.5" />
+                                  </div>
+                                  <div v-if="adminTagDropdown['c_'+props.row.id] && adminTagDropdown['c_'+props.row.id].length"
+                                       class="relative">
+                                    <div class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-40 overflow-y-auto">
+                                      <div v-for="item in adminTagDropdown['c_'+props.row.id]" :key="item.id"
+                                           @mousedown.prevent="adminSelectTag(props.row, 'composer_arr', item)"
+                                           class="px-3 py-1.5 hover:bg-pink-50 cursor-pointer text-xs border-b border-gray-100">
+                                        {{ item.name }}<span class="ml-1 text-gray-400">{{ (item.types||[]).map(t=>TYPE_LABELS[t]).join('') }}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div v-if="adminTagInput['c_'+props.row.id] && adminTagInput['c_'+props.row.id].trim() && !adminIsExactMatch('c_'+props.row.id, adminTagInput['c_'+props.row.id])"
+                                       @mousedown.prevent="adminAddNewTag(props.row, 'composer_arr')"
+                                       class="cursor-pointer text-xs text-blue-600 hover:text-blue-700 mt-1">
+                                    ➕ 新增「{{ adminTagInput['c_'+props.row.id].trim() }}」
+                                  </div>
+                                </el-form-item>
+
                                 <el-form-item label="歌词">
                                   <el-input v-model="props.row.edited_data.lrc_text" type="textarea" :rows="4" />
-                                </el-form-item>
-                                <el-form-item label="视频链接">
-                                  <el-input v-model="props.row.edited_data.video_url" placeholder="B站/YouTube链接（选填）" />
                                 </el-form-item>
                               </el-form>
 
@@ -2193,6 +2332,71 @@
         const recentSubmissions = computed(() => submissions.value.slice(0, 5));
         const pendingCount = computed(() => pendingSubmissions.value.length);
 
+        // ===== Admin 审核面板 tag 多选组件 =====
+        const adminArtists = ref([]); // 全量艺术家数据（用于搜索）
+        const adminTagInput = reactive({});   // 每行/每字段的输入框值
+        const adminTagDropdown = reactive({}); // 下拉建议
+        const TYPE_LABELS = { singer: '🎤', lyricist: '📝', composer: '🎼', arranger: '🎹' };
+
+        // 加载全量艺术家
+        const loadAdminArtists = async () => {
+          try {
+            const { data } = await api.select('artists', '*', { order: 'name' });
+            adminArtists.value = data || [];
+          } catch (e) { console.warn('loadAdminArtists:', e); }
+        };
+        loadAdminArtists();
+
+        const adminOnTagInput = (row, field, value, filterType) => {
+          const inputKey = field === 'artists' ? 's_' + row.id : field === 'album_artists' ? 'aa_' + row.id : field === 'lyricist_arr' ? 'l_' + row.id : 'c_' + row.id;
+          adminTagInput[inputKey] = value;
+          const q = (value || '').trim().toLowerCase();
+          if (!q) { adminTagDropdown[inputKey] = []; return; }
+          let items = adminArtists.value.filter(a => a.name.toLowerCase().includes(q));
+          if (filterType) items = items.filter(a => (a.types || ['singer']).includes(filterType));
+          adminTagDropdown[inputKey] = items.slice(0, 8);
+        };
+        const adminIsExactMatch = (inputKey, value) => {
+          const q = (value || '').trim().toLowerCase();
+          if (!q) return true;
+          return adminArtists.value.some(a => a.name.toLowerCase() === q);
+        };
+        const adminSelectTag = (row, field, item) => {
+          const inputKey = field === 'artists' ? 's_' + row.id : field === 'album_artists' ? 'aa_' + row.id : field === 'lyricist_arr' ? 'l_' + row.id : 'c_' + row.id;
+          if (!row.edited_data[field]) row.edited_data[field] = [];
+          if (row.edited_data[field].some(t => t.name === item.name)) {
+            adminTagInput[inputKey] = ''; adminTagDropdown[inputKey] = []; return;
+          }
+          row.edited_data[field].push({ id: item.id, name: item.name });
+          adminTagInput[inputKey] = ''; adminTagDropdown[inputKey] = [];
+        };
+        const adminAddNewTag = (row, field, filterType) => {
+          const inputKey = field === 'artists' ? 's_' + row.id : field === 'album_artists' ? 'aa_' + row.id : field === 'lyricist_arr' ? 'l_' + row.id : 'c_' + row.id;
+          const name = (adminTagInput[inputKey] || '').trim();
+          if (!name) return;
+          const exact = adminArtists.value.find(a => a.name === name);
+          if (exact) { adminSelectTag(row, field, exact); return; }
+          if (!row.edited_data[field]) row.edited_data[field] = [];
+          if (row.edited_data[field].some(t => t.name === name)) {
+            adminTagInput[inputKey] = ''; adminTagDropdown[inputKey] = []; return;
+          }
+          row.edited_data[field].push({ id: null, name: name });
+          adminTagInput[inputKey] = ''; adminTagDropdown[inputKey] = [];
+        };
+        const adminRemoveTag = (editedData, field, idx) => {
+          if (editedData[field]) editedData[field].splice(idx, 1);
+        };
+        const adminOnTagBackspace = (row, field, inputKey) => {
+          const arr = row.edited_data[field];
+          if (adminTagInput[inputKey] === '' && arr && arr.length > 0) arr.pop();
+        };
+        const adminOnTagBlur = (row, field, inputKey) => {
+          // 失焦自动提交
+          const name = (adminTagInput[inputKey] || '').trim();
+          if (name) adminAddNewTag(row, field);
+          setTimeout(() => { adminTagDropdown[inputKey] = []; }, 200);
+        };
+
         // Search
         const searchQuery = ref('');
         
@@ -2681,20 +2885,35 @@
         const getNewArtists = (editedData) => {
           if (!editedData) return [];
           const fields = [
-            { key: 'artists', label: '歌手' },
-            { key: 'album_artists', label: '专辑艺术家' },
-            { key: 'lyricist_arr', label: '作词' },
-            { key: 'composer_arr', label: '作曲' }
+            { key: 'artists', label: '歌手', type: 'singer' },
+            { key: 'album_artists', label: '专辑艺术家', type: 'singer' },
+            { key: 'lyricist_arr', label: '作词', type: 'lyricist' },
+            { key: 'composer_arr', label: '作曲', type: 'composer' }
           ];
-          const result = [];
+          // 按名字合并：同名跨角色只展示一条，source 合并显示
+          const map = new Map(); // name → { item, sources: [], types: Set }
           fields.forEach(f => {
             const arr = editedData[f.key];
             if (!Array.isArray(arr)) return;
             arr.forEach(item => {
               if (!item || item.id) return; // 已有 ID 跳过
-              if (item.is_show === undefined) item.is_show = true; // 默认展示
-              result.push({ item: item, source: f.label });
+              const name = item.name;
+              if (!map.has(name)) {
+                if (item.is_show === undefined) item.is_show = true;
+                map.set(name, { item, sources: [f.label], types: new Set([f.type]) });
+              } else {
+                const ex = map.get(name);
+                ex.sources.push(f.label);
+                ex.types.add(f.type);
+                // is_show 取并集
+                if (item.is_show) ex.item.is_show = true;
+              }
             });
+          });
+          // 返回合并后的结果，sources 用 "/" 连接显示
+          const result = [];
+          map.forEach(v => {
+            result.push({ item: v.item, source: v.sources.join(' / '), types: Array.from(v.types) });
           });
           return result;
         };
@@ -2749,43 +2968,20 @@
             const songId = 's' + Date.now();
 
             // ---- 批量插入"用户新建的艺术家"（管理员已填 ID） ----
-            // 按 name 去重（同名只插一次），types 取所有来源并集
-            const SOURCE_TYPES = {
-              '歌手': 'singer',
-              '专辑艺术家': 'singer', // 专辑艺术家可能是唱片公司等，默认 singer，管理员可后续改
-              '作词': 'lyricist',
-              '作曲': 'composer'
-            };
-            const dedupMap = new Map(); // name → { id, name, types:Set, is_show }
-            newArtists.forEach(e => {
-              const name = e.item.name;
-              const typeKey = SOURCE_TYPES[e.source] || 'singer';
-              if (dedupMap.has(name)) {
-                const ex = dedupMap.get(name);
-                ex.types.add(typeKey);
-                // is_show 取并集（任一来源要求展示则展示）
-                if (e.item.is_show) ex.is_show = true;
-              } else {
-                dedupMap.set(name, {
-                  id: String(e.item.id).trim(),
-                  name: name,
-                  types: new Set([typeKey]),
-                  is_show: e.item.is_show !== false
-                });
-              }
-            });
-            for (const art of dedupMap.values()) {
+            // getNewArtists 已按名字合并，每个条目唯一，直接遍历插入
+            const nameToId = {};
+            for (const e of newArtists) {
+              const artId = String(e.item.id).trim();
+              const artName = e.item.name;
+              nameToId[artName] = artId;
               await api.insert('artists', {
-                id: art.id,
-                name: art.name,
-                types: Array.from(art.types),
-                is_show: art.is_show,
+                id: artId,
+                name: artName,
+                types: e.types || ['singer'],
+                is_show: e.item.is_show !== false,
                 sort: 0
               });
             }
-            // name → id 映射，用于给数组各项填真实 ID（同名统一用同一个 ID）
-            const nameToId = {};
-            dedupMap.forEach((v, k) => { nameToId[k] = v.id; });
             // 回填：把 sd 中所有无 ID 的项的 id 替换为管理员填的真实 ID
             ['artists', 'album_artists', 'lyricist_arr', 'composer_arr'].forEach(k => {
               if (Array.isArray(sd[k])) {
@@ -4925,6 +5121,7 @@
           openNewSong, openNewArtist, openNewAlbum, onContributorChange,
           approveSubmission, rejectSubmission, withdrawSubmission,
           getNewArtists,
+          TYPE_LABELS, adminOnTagInput, adminIsExactMatch, adminSelectTag, adminAddNewTag, adminRemoveTag, adminOnTagBackspace, adminOnTagBlur,
           getArtistName, getArtistNames, getAlbumName, getAlbumArtist, statusTagType, statusText, formatTime, toggleRow,
           editSong, saveSong, deleteSong, lyricsTab, lyricsTextRef, rhymeColors, wrapRhyme, wrapRuby, wrapTag, wrapLink, descPreview, renderDesc, insertTip, onDescInput, onQuickDescInput,
           editArtist, saveArtist, deleteArtist,

@@ -565,6 +565,9 @@
           if (!tagInput[field] && form[field].length > 0) form[field].pop();
         }
         function onTagBlur(field) {
+          // 未提交的文字自动转为 tag，避免用户输入后忘记回车导致丢失
+          const name = (tagInput[field] || '').trim();
+          if (name) addNewTag(field);
           setTimeout(() => { tagDropdown[field] = []; }, 200);
         }
         // 选已有专辑时由原生 autocomplete 回调填充专辑艺术家
