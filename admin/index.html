@@ -467,7 +467,7 @@
                                       </span>
                                     </template>
                                     <input type="text"
-                                           :value="adminTagInput['s_'+props.row.id]"
+                                           :value="getAdminTagInput('s_'+props.row.id)"
                                            @input="adminOnTagInput(props.row, 'artists', $event.target.value, 'singer')"
                                            @keydown.enter.prevent="adminAddNewTag(props.row, 'artists', 'singer')"
                                            @keydown.delete="adminOnTagBackspace(props.row, 'artists', 's_'+props.row.id)"
@@ -475,22 +475,19 @@
                                            placeholder="搜索已有歌手或输入新名称"
                                            class="flex-1 min-w-[120px] outline-none text-xs py-0.5" />
                                   </div>
-                                  <!-- 下拉建议 -->
-                                  <div v-if="adminTagDropdown['s_'+props.row.id] && adminTagDropdown['s_'+props.row.id].length"
-                                       class="relative">
+                                  <div v-if="getAdminTagDropdown('s_'+props.row.id).length" class="relative">
                                     <div class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-40 overflow-y-auto">
-                                      <div v-for="item in adminTagDropdown['s_'+props.row.id]" :key="item.id"
+                                      <div v-for="item in getAdminTagDropdown('s_'+props.row.id)" :key="item.id"
                                            @mousedown.prevent="adminSelectTag(props.row, 'artists', item)"
                                            class="px-3 py-1.5 hover:bg-pink-50 cursor-pointer text-xs border-b border-gray-100">
                                         {{ item.name }}<span class="ml-1 text-gray-400">{{ (item.types||[]).map(t=>TYPE_LABELS[t]).join('') }}</span>
                                       </div>
                                     </div>
                                   </div>
-                                  <!-- 新建提示 -->
-                                  <div v-if="adminTagInput['s_'+props.row.id] && adminTagInput['s_'+props.row.id].trim() && !adminIsExactMatch('s_'+props.row.id, adminTagInput['s_'+props.row.id])"
+                                  <div v-if="getAdminTagInput('s_'+props.row.id).trim() && !adminIsExactMatch('s_'+props.row.id, getAdminTagInput('s_'+props.row.id))"
                                        @mousedown.prevent="adminAddNewTag(props.row, 'artists', 'singer')"
                                        class="cursor-pointer text-xs text-blue-600 hover:text-blue-700 mt-1">
-                                    ➕ 新增「{{ adminTagInput['s_'+props.row.id].trim() }}」
+                                    ➕ 新增「{{ getAdminTagInput('s_'+props.row.id).trim() }}」
                                   </div>
                                 </el-form-item>
 
@@ -505,7 +502,7 @@
                                       </span>
                                     </template>
                                     <input type="text"
-                                           :value="adminTagInput['aa_'+props.row.id]"
+                                           :value="getAdminTagInput('aa_'+props.row.id)"
                                            @input="adminOnTagInput(props.row, 'album_artists', $event.target.value, null)"
                                            @keydown.enter.prevent="adminAddNewTag(props.row, 'album_artists')"
                                            @keydown.delete="adminOnTagBackspace(props.row, 'album_artists', 'aa_'+props.row.id)"
@@ -513,20 +510,19 @@
                                            placeholder="搜索已有艺术家或输入新名称（可为唱片公司等）"
                                            class="flex-1 min-w-[120px] outline-none text-xs py-0.5" />
                                   </div>
-                                  <div v-if="adminTagDropdown['aa_'+props.row.id] && adminTagDropdown['aa_'+props.row.id].length"
-                                       class="relative">
+                                  <div v-if="getAdminTagDropdown('aa_'+props.row.id).length" class="relative">
                                     <div class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-40 overflow-y-auto">
-                                      <div v-for="item in adminTagDropdown['aa_'+props.row.id]" :key="item.id"
+                                      <div v-for="item in getAdminTagDropdown('aa_'+props.row.id)" :key="item.id"
                                            @mousedown.prevent="adminSelectTag(props.row, 'album_artists', item)"
                                            class="px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-xs border-b border-gray-100">
                                         {{ item.name }}<span class="ml-1 text-gray-400">{{ (item.types||[]).map(t=>TYPE_LABELS[t]).join('') }}</span>
                                       </div>
                                     </div>
                                   </div>
-                                  <div v-if="adminTagInput['aa_'+props.row.id] && adminTagInput['aa_'+props.row.id].trim() && !adminIsExactMatch('aa_'+props.row.id, adminTagInput['aa_'+props.row.id])"
+                                  <div v-if="getAdminTagInput('aa_'+props.row.id).trim() && !adminIsExactMatch('aa_'+props.row.id, getAdminTagInput('aa_'+props.row.id))"
                                        @mousedown.prevent="adminAddNewTag(props.row, 'album_artists')"
                                        class="cursor-pointer text-xs text-blue-600 hover:text-blue-700 mt-1">
-                                    ➕ 新增「{{ adminTagInput['aa_'+props.row.id].trim() }}」
+                                    ➕ 新增「{{ getAdminTagInput('aa_'+props.row.id).trim() }}」
                                   </div>
                                 </el-form-item>
 
@@ -541,7 +537,7 @@
                                       </span>
                                     </template>
                                     <input type="text"
-                                           :value="adminTagInput['l_'+props.row.id]"
+                                           :value="getAdminTagInput('l_'+props.row.id)"
                                            @input="adminOnTagInput(props.row, 'lyricist_arr', $event.target.value, 'lyricist')"
                                            @keydown.enter.prevent="adminAddNewTag(props.row, 'lyricist_arr')"
                                            @keydown.delete="adminOnTagBackspace(props.row, 'lyricist_arr', 'l_'+props.row.id)"
@@ -549,20 +545,19 @@
                                            placeholder="搜索已有作词或输入新名称"
                                            class="flex-1 min-w-[120px] outline-none text-xs py-0.5" />
                                   </div>
-                                  <div v-if="adminTagDropdown['l_'+props.row.id] && adminTagDropdown['l_'+props.row.id].length"
-                                       class="relative">
+                                  <div v-if="getAdminTagDropdown('l_'+props.row.id).length" class="relative">
                                     <div class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-40 overflow-y-auto">
-                                      <div v-for="item in adminTagDropdown['l_'+props.row.id]" :key="item.id"
+                                      <div v-for="item in getAdminTagDropdown('l_'+props.row.id)" :key="item.id"
                                            @mousedown.prevent="adminSelectTag(props.row, 'lyricist_arr', item)"
                                            class="px-3 py-1.5 hover:bg-pink-50 cursor-pointer text-xs border-b border-gray-100">
                                         {{ item.name }}<span class="ml-1 text-gray-400">{{ (item.types||[]).map(t=>TYPE_LABELS[t]).join('') }}</span>
                                       </div>
                                     </div>
                                   </div>
-                                  <div v-if="adminTagInput['l_'+props.row.id] && adminTagInput['l_'+props.row.id].trim() && !adminIsExactMatch('l_'+props.row.id, adminTagInput['l_'+props.row.id])"
+                                  <div v-if="getAdminTagInput('l_'+props.row.id).trim() && !adminIsExactMatch('l_'+props.row.id, getAdminTagInput('l_'+props.row.id))"
                                        @mousedown.prevent="adminAddNewTag(props.row, 'lyricist_arr')"
                                        class="cursor-pointer text-xs text-blue-600 hover:text-blue-700 mt-1">
-                                    ➕ 新增「{{ adminTagInput['l_'+props.row.id].trim() }}」
+                                    ➕ 新增「{{ getAdminTagInput('l_'+props.row.id).trim() }}」
                                   </div>
                                 </el-form-item>
 
@@ -577,7 +572,7 @@
                                       </span>
                                     </template>
                                     <input type="text"
-                                           :value="adminTagInput['c_'+props.row.id]"
+                                           :value="getAdminTagInput('c_'+props.row.id)"
                                            @input="adminOnTagInput(props.row, 'composer_arr', $event.target.value, 'composer')"
                                            @keydown.enter.prevent="adminAddNewTag(props.row, 'composer_arr')"
                                            @keydown.delete="adminOnTagBackspace(props.row, 'composer_arr', 'c_'+props.row.id)"
@@ -585,20 +580,19 @@
                                            placeholder="搜索已有作曲或输入新名称"
                                            class="flex-1 min-w-[120px] outline-none text-xs py-0.5" />
                                   </div>
-                                  <div v-if="adminTagDropdown['c_'+props.row.id] && adminTagDropdown['c_'+props.row.id].length"
-                                       class="relative">
+                                  <div v-if="getAdminTagDropdown('c_'+props.row.id).length" class="relative">
                                     <div class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg max-h-40 overflow-y-auto">
-                                      <div v-for="item in adminTagDropdown['c_'+props.row.id]" :key="item.id"
+                                      <div v-for="item in getAdminTagDropdown('c_'+props.row.id)" :key="item.id"
                                            @mousedown.prevent="adminSelectTag(props.row, 'composer_arr', item)"
                                            class="px-3 py-1.5 hover:bg-pink-50 cursor-pointer text-xs border-b border-gray-100">
                                         {{ item.name }}<span class="ml-1 text-gray-400">{{ (item.types||[]).map(t=>TYPE_LABELS[t]).join('') }}</span>
                                       </div>
                                     </div>
                                   </div>
-                                  <div v-if="adminTagInput['c_'+props.row.id] && adminTagInput['c_'+props.row.id].trim() && !adminIsExactMatch('c_'+props.row.id, adminTagInput['c_'+props.row.id])"
+                                  <div v-if="getAdminTagInput('c_'+props.row.id).trim() && !adminIsExactMatch('c_'+props.row.id, getAdminTagInput('c_'+props.row.id))"
                                        @mousedown.prevent="adminAddNewTag(props.row, 'composer_arr')"
                                        class="cursor-pointer text-xs text-blue-600 hover:text-blue-700 mt-1">
-                                    ➕ 新增「{{ adminTagInput['c_'+props.row.id].trim() }}」
+                                    ➕ 新增「{{ getAdminTagInput('c_'+props.row.id).trim() }}」
                                   </div>
                                 </el-form-item>
 
@@ -2334,9 +2328,21 @@
 
         // ===== Admin 审核面板 tag 多选组件 =====
         const adminArtists = ref([]); // 全量艺术家数据（用于搜索）
-        const adminTagInput = reactive({});   // 每行/每字段的输入框值
-        const adminTagDropdown = reactive({}); // 下拉建议
+        const adminTagInput = ref({});   // 每行/每字段的输入框值
+        const adminTagDropdown = ref({}); // 下拉建议
         const TYPE_LABELS = { singer: '🎤', lyricist: '📝', composer: '🎼', arranger: '🎹' };
+
+        // 安全访问：获取/设置某行某字段的输入值和下拉列表（强制触发响应式）
+        const getAdminTagInput = (key) => adminTagInput.value[key] || '';
+        const setAdminTagInput = (key, val) => {
+          adminTagInput.value[key] = val;
+          adminTagInput.value = { ...adminTagInput.value }; // 强制触发 Vue 响应式
+        };
+        const getAdminTagDropdown = (key) => adminTagDropdown.value[key] || [];
+        const setAdminTagDropdown = (key, val) => {
+          adminTagDropdown.value[key] = val;
+          adminTagDropdown.value = { ...adminTagDropdown.value }; // 强制触发 Vue 响应式
+        };
 
         // 加载全量艺术家
         const loadAdminArtists = async () => {
@@ -2349,12 +2355,12 @@
 
         const adminOnTagInput = (row, field, value, filterType) => {
           const inputKey = field === 'artists' ? 's_' + row.id : field === 'album_artists' ? 'aa_' + row.id : field === 'lyricist_arr' ? 'l_' + row.id : 'c_' + row.id;
-          adminTagInput[inputKey] = value;
+          setAdminTagInput(inputKey, value);
           const q = (value || '').trim().toLowerCase();
-          if (!q) { adminTagDropdown[inputKey] = []; return; }
+          if (!q) { setAdminTagDropdown(inputKey, []); return; }
           let items = adminArtists.value.filter(a => a.name.toLowerCase().includes(q));
           if (filterType) items = items.filter(a => (a.types || ['singer']).includes(filterType));
-          adminTagDropdown[inputKey] = items.slice(0, 8);
+          setAdminTagDropdown(inputKey, items.slice(0, 8));
         };
         const adminIsExactMatch = (inputKey, value) => {
           const q = (value || '').trim().toLowerCase();
@@ -2365,36 +2371,35 @@
           const inputKey = field === 'artists' ? 's_' + row.id : field === 'album_artists' ? 'aa_' + row.id : field === 'lyricist_arr' ? 'l_' + row.id : 'c_' + row.id;
           if (!row.edited_data[field]) row.edited_data[field] = [];
           if (row.edited_data[field].some(t => t.name === item.name)) {
-            adminTagInput[inputKey] = ''; adminTagDropdown[inputKey] = []; return;
+            setAdminTagInput(inputKey, ''); setAdminTagDropdown(inputKey, []); return;
           }
           row.edited_data[field].push({ id: item.id, name: item.name });
-          adminTagInput[inputKey] = ''; adminTagDropdown[inputKey] = [];
+          setAdminTagInput(inputKey, ''); setAdminTagDropdown(inputKey, []);
         };
         const adminAddNewTag = (row, field, filterType) => {
           const inputKey = field === 'artists' ? 's_' + row.id : field === 'album_artists' ? 'aa_' + row.id : field === 'lyricist_arr' ? 'l_' + row.id : 'c_' + row.id;
-          const name = (adminTagInput[inputKey] || '').trim();
+          const name = (getAdminTagInput(inputKey) || '').trim();
           if (!name) return;
           const exact = adminArtists.value.find(a => a.name === name);
           if (exact) { adminSelectTag(row, field, exact); return; }
           if (!row.edited_data[field]) row.edited_data[field] = [];
           if (row.edited_data[field].some(t => t.name === name)) {
-            adminTagInput[inputKey] = ''; adminTagDropdown[inputKey] = []; return;
+            setAdminTagInput(inputKey, ''); setAdminTagDropdown(inputKey, []); return;
           }
           row.edited_data[field].push({ id: null, name: name });
-          adminTagInput[inputKey] = ''; adminTagDropdown[inputKey] = [];
+          setAdminTagInput(inputKey, ''); setAdminTagDropdown(inputKey, []);
         };
         const adminRemoveTag = (editedData, field, idx) => {
           if (editedData[field]) editedData[field].splice(idx, 1);
         };
         const adminOnTagBackspace = (row, field, inputKey) => {
           const arr = row.edited_data[field];
-          if (adminTagInput[inputKey] === '' && arr && arr.length > 0) arr.pop();
+          if (!getAdminTagInput(inputKey) && arr && arr.length > 0) arr.pop();
         };
         const adminOnTagBlur = (row, field, inputKey) => {
-          // 失焦自动提交
-          const name = (adminTagInput[inputKey] || '').trim();
+          const name = (getAdminTagInput(inputKey) || '').trim();
           if (name) adminAddNewTag(row, field);
-          setTimeout(() => { adminTagDropdown[inputKey] = []; }, 200);
+          setTimeout(() => { setAdminTagDropdown(inputKey, []); }, 200);
         };
 
         // Search
@@ -5122,6 +5127,7 @@
           approveSubmission, rejectSubmission, withdrawSubmission,
           getNewArtists,
           TYPE_LABELS, adminOnTagInput, adminIsExactMatch, adminSelectTag, adminAddNewTag, adminRemoveTag, adminOnTagBackspace, adminOnTagBlur,
+          getAdminTagInput, getAdminTagDropdown,
           getArtistName, getArtistNames, getAlbumName, getAlbumArtist, statusTagType, statusText, formatTime, toggleRow,
           editSong, saveSong, deleteSong, lyricsTab, lyricsTextRef, rhymeColors, wrapRhyme, wrapRuby, wrapTag, wrapLink, descPreview, renderDesc, insertTip, onDescInput, onQuickDescInput,
           editArtist, saveArtist, deleteArtist,
