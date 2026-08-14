@@ -577,17 +577,17 @@
 
           submitting.value = true;
           try {
-            let result;
+            let success = false;
             try {
-              result = await api.submitSubmissionV2(payload);
+              await api.submitSubmissionV2(payload);
+              success = true;
             } catch (e) {
-              result = await api.submitSubmission(payload);
+              await api.submitSubmission(payload);
+              success = true;
             }
-            if (result) {
+            if (success) {
               submitted.value = true;
               window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else {
-              ElementPlus.ElMessage.error('提交失败，请稍后重试');
             }
           } catch (err) {
             console.error(err);

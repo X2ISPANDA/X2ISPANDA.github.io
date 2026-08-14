@@ -505,10 +505,9 @@
           song_data: songData,
           status: 'pending',
           created_at: new Date().toISOString()
-        }])
-        .select();
+        }]);
       if (error) throw error;
-      return data?.[0] || null;
+      return null;
     },
 
     // 评论 (使用 comments 表，支持楼中楼+身份标识+口令验证)
@@ -842,10 +841,9 @@
           song_data: songData,
           status: 'pending',
           created_at: new Date().toISOString()
-        }])
-        .select();
+        }]);
       if (error) throw error;
-      return data?.[0] || null;
+      return null;
     }
   };
 
