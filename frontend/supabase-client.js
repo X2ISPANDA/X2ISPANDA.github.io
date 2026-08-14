@@ -832,7 +832,7 @@
           id: 'sub' + Date.now(),
           user_name: payload.submitter_name || '匿名',
           user_email: payload.submitter_email || '',
-          submitter_contact: payload.submitter_contact || '',
+          contact_value: payload.contact_value || {},
           submitter_public_contact: !!payload.submitter_public_contact,
           // 投稿人选择的贡献者关联 & 操作标记
           contributor_id: payload.contributor_id || null,

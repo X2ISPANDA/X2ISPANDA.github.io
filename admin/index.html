@@ -2694,17 +2694,8 @@
             const sd = sub.edited_data;
             const songId = 's' + Date.now();
 
-            // ---- 解析 submitter_contact，兼容旧数据把 submitter_homepage 合并到 "个人主页" ----
-            let contactValue;
-            try {
-              contactValue = typeof sub.submitter_contact === 'string'
-                ? JSON.parse(sub.submitter_contact || '{}')
-                : (sub.submitter_contact || {});
-              // 旧数据兼容：submitter_homepage 非空 → 写入 "个人主页"
-              if (sub.submitter_homepage && sub.submitter_homepage !== '' && sub.submitter_public_homepage) {
-                if (!contactValue['个人主页']) contactValue['个人主页'] = sub.submitter_homepage;
-              }
-            } catch (_) { contactValue = {}; }
+            // ---- contact_value 已与 contributors 表一致（JSONB），无需转换 ----
+            const contactValue = sub.contact_value || {};
 
             // ---- 解析 submitter_bio ----
             const submitterBio = (sub.submitter_bio !== undefined && sub.submitter_bio !== null)
